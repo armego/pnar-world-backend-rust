@@ -1,12 +1,25 @@
+use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::OpenApi;
-use utoipa::openapi::security::{SecurityScheme, HttpAuthScheme, Http};
-use utoipa::{Modify, openapi};
+use utoipa::{openapi, Modify};
 
 use crate::dto::{
-    auth::{LoginRequest, RegisterRequest, RefreshTokenRequest},
-    dictionary::{CreateDictionaryEntryRequest, UpdateDictionaryEntryRequest, SearchDictionaryRequest, SearchType},
-    responses::{AuthResponse, AuthApiResponse, UserResponse, UserApiResponse, DictionaryEntryResponse, PaginatedResponse, HealthResponse, PaginationInfo, SuccessResponse},
-    user::{CreateUserRequest, UpdateUserRequest, UpdatePasswordRequest, UserQueryParams, AwardPointsRequest},
+    analytics::{CreateAnalyticsRequest, UpdateAnalyticsRequest},
+    auth::{LoginRequest, RefreshTokenRequest, RegisterRequest},
+    contribution::{CreateContributionRequest, UpdateContributionRequest},
+    dictionary::{
+        CreateDictionaryEntryRequest, SearchDictionaryRequest, SearchType,
+        UpdateDictionaryEntryRequest,
+    },
+    responses::{
+        AnalyticsResponse, ApiResponse, AuthResponse, ContributionResponse,
+        DictionaryEntryResponse, HealthResponse, PaginationInfo, SuccessResponse,
+        TranslationResponse, UserResponse,
+    },
+    translation::{CreateTranslationRequest, UpdateTranslationRequest},
+    user::{
+        AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
+        UserQueryParams,
+    },
 };
 
 #[derive(OpenApi)]
@@ -29,6 +42,23 @@ use crate::dto::{
         crate::handlers::dictionary::update_entry,
         crate::handlers::dictionary::delete_entry,
         crate::handlers::dictionary::verify_entry,
+        crate::handlers::translation::create_translation,
+        crate::handlers::translation::get_translation,
+        crate::handlers::translation::list_translations,
+        crate::handlers::translation::update_translation,
+        crate::handlers::translation::delete_translation,
+        crate::handlers::contribution::create_contribution,
+        crate::handlers::contribution::get_contribution,
+        crate::handlers::contribution::list_contributions,
+        crate::handlers::contribution::update_contribution,
+        crate::handlers::contribution::delete_contribution,
+        crate::handlers::analytics::create_analytics,
+        crate::handlers::analytics::create_anonymous_analytics,
+        crate::handlers::analytics::get_analytics,
+        crate::handlers::analytics::list_analytics,
+        crate::handlers::analytics::update_analytics,
+        crate::handlers::analytics::delete_analytics,
+        crate::handlers::analytics::get_word_stats,
     ),
     components(
         schemas(
@@ -36,29 +66,48 @@ use crate::dto::{
             LoginRequest,
             RegisterRequest,
             RefreshTokenRequest,
-            
+
             // User DTOs
             CreateUserRequest,
             UpdateUserRequest,
             UpdatePasswordRequest,
             UserQueryParams,
             AwardPointsRequest,
-            
+
             // Dictionary DTOs
             CreateDictionaryEntryRequest,
             UpdateDictionaryEntryRequest,
             SearchDictionaryRequest,
             SearchType,
-            
+
+            // Translation DTOs
+            CreateTranslationRequest,
+            UpdateTranslationRequest,
+
+            // Contribution DTOs
+            CreateContributionRequest,
+            UpdateContributionRequest,
+
+            // Analytics DTOs
+            CreateAnalyticsRequest,
+            UpdateAnalyticsRequest,
+
             // Response DTOs
             SuccessResponse,
-            AuthApiResponse,
-            UserApiResponse,
             AuthResponse,
             UserResponse,
             DictionaryEntryResponse,
-            PaginatedResponse<UserResponse>,
-            PaginatedResponse<DictionaryEntryResponse>,
+            TranslationResponse,
+            ContributionResponse,
+            AnalyticsResponse,
+            HealthResponse,
+            PaginationInfo,
+            ApiResponse<AuthResponse>,
+            ApiResponse<UserResponse>,
+            ApiResponse<DictionaryEntryResponse>,
+            ApiResponse<TranslationResponse>,
+            ApiResponse<ContributionResponse>,
+            ApiResponse<AnalyticsResponse>,
             PaginationInfo,
             HealthResponse,
         )
@@ -67,7 +116,10 @@ use crate::dto::{
         (name = "health", description = "Health check endpoints"),
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User management endpoints"),
-        (name = "dictionary", description = "Dictionary management endpoints")
+        (name = "dictionary", description = "Dictionary management endpoints"),
+        (name = "translations", description = "Translation request endpoints"),
+        (name = "contributions", description = "User contribution endpoints"),
+        (name = "analytics", description = "Word usage analytics endpoints")
     ),
     info(
         title = "Pnar World Dictionary API",

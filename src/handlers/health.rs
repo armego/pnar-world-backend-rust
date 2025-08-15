@@ -15,7 +15,7 @@ use utoipa;
 #[get("/health")]
 pub async fn health_check(pool: web::Data<PgPool>) -> Result<HttpResponse, AppError> {
     let version = env!("CARGO_PKG_VERSION");
-    
+
     match database::health_check(&pool).await {
         Ok(_) => Ok(HttpResponse::Ok().json(HealthResponse::healthy(version))),
         Err(_) => Ok(HttpResponse::ServiceUnavailable()

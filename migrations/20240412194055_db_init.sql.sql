@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_users_translation_points ON users(translation_poi
 
 -- Create translation tables for the translation service
 CREATE TABLE IF NOT EXISTS pnar_dictionary (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pnar_word VARCHAR(255) NOT NULL UNIQUE,
     english_word VARCHAR(255) NOT NULL,
     part_of_speech VARCHAR(50),
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS pnar_dictionary (
 
 -- Create translation requests table
 CREATE TABLE IF NOT EXISTS translation_requests (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     source_text TEXT NOT NULL,
     source_language VARCHAR(10) NOT NULL DEFAULT 'en',
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS translation_requests (
 
 -- Create user contributions table
 CREATE TABLE IF NOT EXISTS user_contributions (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     contribution_type VARCHAR(50) NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS user_contributions (
 
 -- Create word usage analytics table
 CREATE TABLE IF NOT EXISTS word_usage_analytics (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     word_id UUID NOT NULL REFERENCES pnar_dictionary(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     usage_type VARCHAR(50) NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS word_usage_analytics (
 
 -- Create notifications table
 CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,

@@ -32,9 +32,13 @@ impl Claims {
 pub fn generate_token(user_id: Uuid) -> Result<String, AppError> {
     let claims = Claims::new(user_id);
     let secret = get_jwt_secret();
-    
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref()))
-        .map_err(|e| AppError::Internal(format!("Failed to generate token: {}", e)))
+
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .map_err(|e| AppError::Internal(format!("Failed to generate token: {}", e)))
 }
 
 pub fn generate_refresh_token(user_id: Uuid) -> Result<String, AppError> {
@@ -46,16 +50,20 @@ pub fn generate_refresh_token(user_id: Uuid) -> Result<String, AppError> {
         exp: expiry.timestamp(),
         iat: now.timestamp(),
     };
-    
+
     let secret = get_jwt_secret();
-    
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref()))
-        .map_err(|e| AppError::Internal(format!("Failed to generate refresh token: {}", e)))
+
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .map_err(|e| AppError::Internal(format!("Failed to generate refresh token: {}", e)))
 }
 
 pub fn verify_token(token: &str) -> Result<Claims, AppError> {
     let secret = get_jwt_secret();
-    
+
     decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_ref()),
@@ -66,6 +74,5 @@ pub fn verify_token(token: &str) -> Result<Claims, AppError> {
 }
 
 fn get_jwt_secret() -> String {
-    std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "your-secret-key".to_string())
+    std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string())
 }

@@ -1,8 +1,8 @@
 use crate::{
-    dto::{AuthApiResponse, AuthResponse, LoginRequest, RegisterRequest, UserApiResponse, UserResponse, ApiResponse},
+    dto::{ApiResponse, LoginRequest, RegisterRequest},
     error::AppError,
     middleware::auth::AuthenticatedUser,
-    services::auth_service,
+    services::{auth_service, user_service},
 };
 use actix_web::{get, post, web, HttpResponse};
 use sqlx::PgPool;
@@ -14,7 +14,7 @@ use validator::Validate;
     tag = "auth",
     request_body = RegisterRequest,
     responses(
-        (status = 201, description = "User registered successfully", body = AuthApiResponse),
+        (status = 201, description = "User registered successfully", body = ApiResponse<AuthResponse>),
         (status = 400, description = "Invalid input data"),
         (status = 409, description = "User already exists")
     )
@@ -25,9 +25,9 @@ pub async fn register(
     request: web::Json<RegisterRequest>,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
-    
+
     let auth_response = auth_service::register_user(&pool, request.into_inner()).await?;
-    
+
     Ok(HttpResponse::Created().json(ApiResponse::new(auth_response)))
 }
 
@@ -37,7 +37,7 @@ pub async fn register(
     tag = "auth",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "Login successful", body = AuthApiResponse),
+        (status = 200, description = "Login successful", body = ApiResponse<AuthResponse>),
         (status = 400, description = "Invalid input data"),
         (status = 401, description = "Invalid credentials")
     )
@@ -48,9 +48,9 @@ pub async fn login(
     request: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
-    
+
     let auth_response = auth_service::login_user(&pool, request.into_inner()).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(auth_response)))
 }
 
@@ -91,7 +91,7 @@ pub async fn profile(
     pool: web::Data<PgPool>,
     user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    let user_profile = auth_service::get_user_profile(&pool, user.id).await?;
-    
+    let user_profile = user_service::get_user_by_id(&pool, user.user_id).await?;
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user_profile)))
 }

@@ -1,7 +1,10 @@
 use crate::{
     dto::{
-        user::{CreateUserRequest, UpdateUserRequest, UpdatePasswordRequest, UserQueryParams, AwardPointsRequest},
-        responses::{UserResponse, PaginatedResponse},
+        responses::{PaginatedResponse, UserResponse},
+        user::{
+            AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
+            UserQueryParams,
+        },
     },
     error::{AppError, AppResult},
 };
@@ -14,20 +17,17 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 /// Create a new user
-pub async fn create_user(
-    pool: &PgPool,
-    request: CreateUserRequest,
-) -> AppResult<UserResponse> {
+pub async fn create_user(pool: &PgPool, request: CreateUserRequest) -> AppResult<UserResponse> {
     // Check if user already exists
-    let existing_user = sqlx::query(
-        "SELECT id FROM users WHERE email = $1"
-    )
-    .bind(&request.email)
-    .fetch_optional(pool)
-    .await?;
+    let existing_user = sqlx::query("SELECT id FROM users WHERE email = $1")
+        .bind(&request.email)
+        .fetch_optional(pool)
+        .await?;
 
     if existing_user.is_some() {
-        return Err(AppError::Conflict("User with this email already exists".to_string()));
+        return Err(AppError::Conflict(
+            "User with this email already exists".to_string(),
+        ));
     }
 
     // Hash password
@@ -41,7 +41,7 @@ pub async fn create_user(
     // Insert user
     let user_id = Uuid::new_v4();
     let now = Utc::now();
-    
+
     let user_row = sqlx::query(
         r#"
         INSERT INTO users (
@@ -53,7 +53,7 @@ pub async fn create_user(
             id, email, password, full_name, avatar_url, role, 
             translation_points, bio, preferred_language, settings,
             is_active, is_email_verified, created_at, updated_at
-        "#
+        "#,
     )
     .bind(user_id)
     .bind(&request.email)
@@ -62,7 +62,11 @@ pub async fn create_user(
     .bind(&request.avatar_url)
     .bind(request.role.unwrap_or_else(|| "user".to_string()))
     .bind(&request.bio)
-    .bind(request.preferred_language.unwrap_or_else(|| "en".to_string()))
+    .bind(
+        request
+            .preferred_language
+            .unwrap_or_else(|| "en".to_string()),
+    )
     .bind(request.settings.unwrap_or_else(|| serde_json::json!({})))
     .bind(request.is_active.unwrap_or(true))
     .bind(now)
@@ -88,10 +92,7 @@ pub async fn create_user(
 }
 
 /// Get user by ID
-pub async fn get_user_by_id(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> AppResult<UserResponse> {
+pub async fn get_user_by_id(pool: &PgPool, user_id: Uuid) -> AppResult<UserResponse> {
     let user_record = sqlx::query(
         r#"
         SELECT 
@@ -100,7 +101,7 @@ pub async fn get_user_by_id(
             is_active, is_email_verified, created_at, updated_at
         FROM users 
         WHERE id = $1
-        "#
+        "#,
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -125,10 +126,7 @@ pub async fn get_user_by_id(
 }
 
 /// Get user by email
-pub async fn get_user_by_email(
-    pool: &PgPool,
-    email: &str,
-) -> AppResult<UserResponse> {
+pub async fn get_user_by_email(pool: &PgPool, email: &str) -> AppResult<UserResponse> {
     let user_record = sqlx::query(
         r#"
         SELECT 
@@ -137,7 +135,7 @@ pub async fn get_user_by_email(
             is_active, is_email_verified, created_at, updated_at
         FROM users 
         WHERE email = $1
-        "#
+        "#,
     )
     .bind(email)
     .fetch_optional(pool)
@@ -187,30 +185,38 @@ pub async fn list_users(
         WHERE is_active = true
         ORDER BY created_at DESC 
         LIMIT $1 OFFSET $2
-        "#
+        "#,
     )
     .bind(per_page)
     .bind(offset)
     .fetch_all(pool)
     .await?;
 
-    let user_responses: Vec<UserResponse> = users_rows.into_iter().map(|row| UserResponse {
-        id: row.get("id"),
-        email: row.get("email"),
-        full_name: row.get("full_name"),
-        avatar_url: row.get("avatar_url"),
-        role: row.get("role"),
-        translation_points: row.get("translation_points"),
-        bio: row.get("bio"),
-        preferred_language: row.get("preferred_language"),
-        settings: row.get("settings"),
-        is_active: row.get("is_active"),
-        is_email_verified: row.get("is_email_verified"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }).collect();
+    let user_responses: Vec<UserResponse> = users_rows
+        .into_iter()
+        .map(|row| UserResponse {
+            id: row.get("id"),
+            email: row.get("email"),
+            full_name: row.get("full_name"),
+            avatar_url: row.get("avatar_url"),
+            role: row.get("role"),
+            translation_points: row.get("translation_points"),
+            bio: row.get("bio"),
+            preferred_language: row.get("preferred_language"),
+            settings: row.get("settings"),
+            is_active: row.get("is_active"),
+            is_email_verified: row.get("is_email_verified"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+        .collect();
 
-    Ok(PaginatedResponse::new(user_responses, page, per_page, total))
+    Ok(PaginatedResponse::new(
+        user_responses,
+        page,
+        per_page,
+        total,
+    ))
 }
 
 /// Update user
@@ -225,13 +231,11 @@ pub async fn update_user(
     // Check email uniqueness if email is being updated
     if let Some(ref email) = request.email {
         if email != &existing_user.email {
-            let email_exists = sqlx::query(
-                "SELECT id FROM users WHERE email = $1 AND id != $2"
-            )
-            .bind(&email)
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await?;
+            let email_exists = sqlx::query("SELECT id FROM users WHERE email = $1 AND id != $2")
+                .bind(&email)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?;
 
             if email_exists.is_some() {
                 return Err(AppError::Conflict("Email already taken".to_string()));
@@ -259,7 +263,7 @@ pub async fn update_user(
             id, email, password, full_name, avatar_url, role, 
             translation_points, bio, preferred_language, settings,
             is_active, is_email_verified, created_at, updated_at
-        "#
+        "#,
     )
     .bind(&request.email)
     .bind(&request.full_name)
@@ -306,7 +310,7 @@ pub async fn update_user_password(
             is_active, is_email_verified, created_at, updated_at
         FROM users 
         WHERE id = $1
-        "#
+        "#,
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -331,28 +335,22 @@ pub async fn update_user_password(
         .to_string();
 
     // Update password
-    sqlx::query(
-        "UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2"
-    )
-    .bind(&new_password_hash)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+    sqlx::query("UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2")
+        .bind(&new_password_hash)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
 
 /// Delete user (soft delete by setting is_active to false)
-pub async fn delete_user(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> AppResult<()> {
-    let result = sqlx::query(
-        "UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1"
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+pub async fn delete_user(pool: &PgPool, user_id: Uuid) -> AppResult<()> {
+    let result =
+        sqlx::query("UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("User not found".to_string()));
@@ -362,16 +360,11 @@ pub async fn delete_user(
 }
 
 /// Permanently delete user (hard delete)
-pub async fn permanently_delete_user(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> AppResult<()> {
-    let result = sqlx::query(
-        "DELETE FROM users WHERE id = $1"
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+pub async fn permanently_delete_user(pool: &PgPool, user_id: Uuid) -> AppResult<()> {
+    let result = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("User not found".to_string()));
@@ -397,7 +390,7 @@ pub async fn award_points(
             id, email, password, full_name, avatar_url, role, 
             translation_points, bio, preferred_language, settings,
             is_active, is_email_verified, created_at, updated_at
-        "#
+        "#,
     )
     .bind(request.points)
     .bind(user_id)
@@ -423,10 +416,7 @@ pub async fn award_points(
 }
 
 /// Verify user email
-pub async fn verify_email(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> AppResult<UserResponse> {
+pub async fn verify_email(pool: &PgPool, user_id: Uuid) -> AppResult<UserResponse> {
     let user_row = sqlx::query(
         r#"
         UPDATE users 
@@ -438,7 +428,7 @@ pub async fn verify_email(
             id, email, password, full_name, avatar_url, role, 
             translation_points, bio, preferred_language, settings,
             is_active, is_email_verified, created_at, updated_at
-        "#
+        "#,
     )
     .bind(user_id)
     .fetch_optional(pool)

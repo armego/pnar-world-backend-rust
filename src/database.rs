@@ -5,7 +5,7 @@ use tracing::info;
 
 pub async fn create_connection_pool(settings: &DatabaseSettings) -> AppResult<PgPool> {
     info!("Connecting to database...");
-    
+
     let pool = PgPoolOptions::new()
         .max_connections(settings.max_connections)
         .acquire_timeout(Duration::from_secs(10))

@@ -1,4 +1,7 @@
+pub mod analytics;
 pub mod auth;
+pub mod contribution;
 pub mod dictionary;
 pub mod health;
+pub mod translation;
 pub mod user;

@@ -1,12 +1,10 @@
 pub mod config;
 pub mod database;
-pub mod domain;
 pub mod dto;
 pub mod error;
 pub mod handlers;
 pub mod logging;
 pub mod middleware;
-pub mod models;
 pub mod openapi;
 pub mod services;
 pub mod startup;

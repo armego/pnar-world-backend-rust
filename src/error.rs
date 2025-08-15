@@ -124,11 +124,15 @@ impl From<validator::ValidationErrors> for AppError {
             .into_iter()
             .flat_map(|(field, errors)| {
                 errors.iter().map(move |error| {
-                    format!("{}: {}", field, error.message.as_ref().unwrap_or(&"Invalid value".into()))
+                    format!(
+                        "{}: {}",
+                        field,
+                        error.message.as_ref().unwrap_or(&"Invalid value".into())
+                    )
                 })
             })
             .collect();
-        
+
         AppError::Validation(error_messages.join("; "))
     }
 }

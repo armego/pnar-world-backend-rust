@@ -1,11 +1,11 @@
 use crate::{
-    dto::{LoginRequest, RegisterRequest},
     dto::responses::{AuthResponse, UserResponse},
+    dto::{LoginRequest, RegisterRequest},
     error::AppError,
     utils::jwt,
 };
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{rand_core::OsRng, SaltString};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
@@ -37,7 +37,7 @@ pub async fn register_user(
         r#"
         INSERT INTO users (id, email, password, full_name, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
-        "#
+        "#,
     )
     .bind(user_id)
     .bind(&request.email)
@@ -56,7 +56,7 @@ pub async fn register_user(
             id, email, full_name, avatar_url, role, translation_points, 
             bio, preferred_language, settings, is_active, is_email_verified, 
             created_at, updated_at 
-        FROM users WHERE id = $1"#
+        FROM users WHERE id = $1"#,
     )
     .bind(user_id)
     .fetch_one(pool)
@@ -86,25 +86,21 @@ pub async fn register_user(
     })
 }
 
-pub async fn login_user(
-    pool: &PgPool,
-    request: LoginRequest,
-) -> Result<AuthResponse, AppError> {
+pub async fn login_user(pool: &PgPool, request: LoginRequest) -> Result<AuthResponse, AppError> {
     // Get user from database
-    let user_record = sqlx::query(
-        "SELECT id, password FROM users WHERE email = $1"
-    )
-    .bind(&request.email)
-    .fetch_optional(pool)
-    .await?;
+    let user_record = sqlx::query("SELECT id, password FROM users WHERE email = $1")
+        .bind(&request.email)
+        .fetch_optional(pool)
+        .await?;
 
-    let user_record = user_record.ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
+    let user_record =
+        user_record.ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
     // Verify password
     let password: String = user_record.get("password");
     let parsed_hash = PasswordHash::new(&password)
         .map_err(|e| AppError::Internal(format!("Failed to parse password hash: {}", e)))?;
-    
+
     let argon2 = Argon2::default();
     argon2
         .verify_password(request.password.as_bytes(), &parsed_hash)
@@ -122,7 +118,7 @@ pub async fn login_user(
             id, email, full_name, avatar_url, role, translation_points, 
             bio, preferred_language, settings, is_active, is_email_verified, 
             created_at, updated_at 
-        FROM users WHERE id = $1"#
+        FROM users WHERE id = $1"#,
     )
     .bind(user_id)
     .fetch_one(pool)
@@ -152,10 +148,7 @@ pub async fn login_user(
     })
 }
 
-pub async fn get_user_profile(
-    pool: &PgPool,
-    user_id: Uuid,
-) -> Result<UserResponse, AppError> {
+pub async fn get_user_profile(pool: &PgPool, user_id: Uuid) -> Result<UserResponse, AppError> {
     let user_record = sqlx::query(
         r#"
         SELECT 
@@ -164,13 +157,14 @@ pub async fn get_user_profile(
             created_at, updated_at
         FROM users 
         WHERE id = $1
-        "#
+        "#,
     )
     .bind(user_id)
     .fetch_optional(pool)
     .await?;
 
-    let user_record = user_record.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    let user_record =
+        user_record.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     Ok(UserResponse {
         id: user_record.get("id"),

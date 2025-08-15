@@ -8,12 +8,16 @@ pub struct RegisterRequest {
     #[validate(email(message = "Invalid email format"))]
     #[schema(example = "user@example.com")]
     pub email: String,
-    
+
     #[validate(length(min = 8, message = "Password must be at least 8 characters long"))]
     #[schema(example = "securepassword123")]
     pub password: String,
-    
-    #[validate(length(min = 2, max = 100, message = "Full name must be between 2 and 100 characters"))]
+
+    #[validate(length(
+        min = 2,
+        max = 100,
+        message = "Full name must be between 2 and 100 characters"
+    ))]
     #[schema(example = "John Doe")]
     pub full_name: Option<String>,
 }
@@ -24,7 +28,7 @@ pub struct LoginRequest {
     #[validate(email(message = "Invalid email format"))]
     #[schema(example = "user@example.com")]
     pub email: String,
-    
+
     #[validate(length(min = 1, message = "Password is required"))]
     #[schema(example = "securepassword123")]
     pub password: String,

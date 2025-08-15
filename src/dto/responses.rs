@@ -162,7 +162,57 @@ pub struct PaginationInfo {
 impl<T> PaginatedResponse<T> {
     pub fn new(data: Vec<T>, page: i64, per_page: i64, total: i64) -> Self {
         let pages = (total + per_page - 1) / per_page; // Ceiling division
-        
+
+        Self {
+            data,
+            pagination: PaginationInfo {
+                page,
+                per_page,
+                total,
+                pages,
+            },
+            timestamp: Utc::now(),
+        }
+    }
+}
+
+/// Dictionary entries paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DictionaryPaginatedResponse {
+    pub data: Vec<DictionaryEntryResponse>,
+    pub pagination: PaginationInfo,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl DictionaryPaginatedResponse {
+    pub fn new(data: Vec<DictionaryEntryResponse>, page: i64, per_page: i64, total: i64) -> Self {
+        let pages = (total + per_page - 1) / per_page; // Ceiling division
+
+        Self {
+            data,
+            pagination: PaginationInfo {
+                page,
+                per_page,
+                total,
+                pages,
+            },
+            timestamp: Utc::now(),
+        }
+    }
+}
+
+/// Users paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UserPaginatedResponse {
+    pub data: Vec<UserResponse>,
+    pub pagination: PaginationInfo,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl UserPaginatedResponse {
+    pub fn new(data: Vec<UserResponse>, page: i64, per_page: i64, total: i64) -> Self {
+        let pages = (total + per_page - 1) / per_page; // Ceiling division
+
         Self {
             data,
             pagination: PaginationInfo {
@@ -197,7 +247,7 @@ impl HealthResponse {
             database: "connected".to_string(),
         }
     }
-    
+
     pub fn unhealthy(version: &str, database_status: &str) -> Self {
         Self {
             status: "unhealthy".to_string(),
@@ -206,4 +256,78 @@ impl HealthResponse {
             database: database_status.to_string(),
         }
     }
+}
+
+/// Translation request response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TranslationResponse {
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub id: Uuid,
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub user_id: Uuid,
+    #[schema(example = "Hello world")]
+    pub source_text: String,
+    #[schema(example = "en")]
+    pub source_language: String,
+    #[schema(example = "pnar")]
+    pub target_language: String,
+    #[schema(example = "Kumno aiu")]
+    pub translated_text: Option<String>,
+    #[schema(example = "completed")]
+    pub status: String,
+    #[schema(example = "automatic")]
+    pub translation_type: String,
+    #[schema(example = 0.95)]
+    pub confidence_score: Option<f64>,
+    pub reviewed: bool,
+    pub reviewed_by: Option<Uuid>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// User contribution response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ContributionResponse {
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub id: Uuid,
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub user_id: Uuid,
+    #[schema(example = "dictionary_entry")]
+    pub contribution_type: String,
+    #[schema(example = "pnar_dictionary")]
+    pub entity_type: String,
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub entity_id: Uuid,
+    #[schema(example = "create")]
+    pub action: String,
+    pub previous_value: Option<serde_json::Value>,
+    pub new_value: Option<serde_json::Value>,
+    #[schema(example = 10)]
+    pub points_awarded: i32,
+    #[schema(example = "approved")]
+    pub status: String,
+    pub reviewed_by: Option<Uuid>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Word usage analytics response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AnalyticsResponse {
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub id: Uuid,
+    #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
+    pub word_id: Uuid,
+    pub user_id: Option<Uuid>,
+    #[schema(example = "search")]
+    pub event_type: String,
+    #[schema(example = "2023-01-01T00:00:00Z")]
+    pub timestamp: DateTime<Utc>,
+    #[schema(example = "sess_12345")]
+    pub session_id: Option<String>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

@@ -1,7 +1,10 @@
 use crate::{
     dto::{
-        user::{CreateUserRequest, UpdateUserRequest, UpdatePasswordRequest, UserQueryParams, AwardPointsRequest},
         responses::{ApiResponse, SuccessResponse},
+        user::{
+            AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
+            UserQueryParams,
+        },
     },
     error::AppError,
     middleware::auth::AuthenticatedUser,
@@ -35,7 +38,7 @@ pub async fn create_user(
     request.validate()?;
 
     let user = user_service::create_user(&pool, request.into_inner()).await?;
-    
+
     Ok(HttpResponse::Created().json(ApiResponse::new(user)))
 }
 
@@ -60,7 +63,7 @@ pub async fn get_user(
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
     let user = user_service::get_user_by_id(&pool, user_id).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }
 
@@ -84,9 +87,9 @@ pub async fn get_current_user(
     pool: web::Data<PgPool>,
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    let user = user_service::get_user_by_id(&pool, auth_user.id).await?;
-    
-    Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
+    let current_user = user_service::get_user_by_id(&pool, auth_user.user_id).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::new(current_user)))
 }
 
 /// List users with pagination and filtering
@@ -110,7 +113,7 @@ pub async fn list_users(
     query.validate()?;
 
     let users = user_service::list_users(&pool, query.into_inner()).await?;
-    
+
     Ok(HttpResponse::Ok().json(users))
 }
 
@@ -143,19 +146,19 @@ pub async fn update_user(
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-    
+
     // Validate request
     request.validate()?;
 
     // Check if user is updating their own profile or has admin role
-    if user_id != auth_user.id {
+    if user_id != auth_user.user_id {
         // Here you would check if the authenticated user has admin role
         // For now, we'll allow any authenticated user to update any profile
         // In production, you should implement proper role-based access control
     }
 
     let user = user_service::update_user(&pool, user_id, request.into_inner()).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }
 
@@ -170,9 +173,10 @@ pub async fn update_current_user(
     // Validate request
     request.validate()?;
 
-    let user = user_service::update_user(&pool, auth_user.id, request.into_inner()).await?;
-    
-    Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
+    let updated_user =
+        user_service::update_user(&pool, auth_user.user_id, request.into_inner()).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::new(updated_user)))
 }
 
 /// Update user password
@@ -185,18 +189,22 @@ pub async fn update_user_password(
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-    
+
     // Validate request
     request.validate()?;
 
     // Only allow users to update their own password
-    if user_id != auth_user.id {
-        return Err(AppError::Forbidden("You can only update your own password".to_string()));
+    if user_id != auth_user.user_id {
+        return Err(AppError::Forbidden(
+            "You can only update your own password".to_string(),
+        ));
     }
 
     user_service::update_user_password(&pool, user_id, request.into_inner()).await?;
-    
-    Ok(HttpResponse::Ok().json(SuccessResponse::new("Password updated successfully".to_string())))
+
+    Ok(HttpResponse::Ok().json(SuccessResponse::new(
+        "Password updated successfully".to_string(),
+    )))
 }
 
 /// Update current user password
@@ -210,9 +218,11 @@ pub async fn update_current_user_password(
     // Validate request
     request.validate()?;
 
-    user_service::update_user_password(&pool, auth_user.id, request.into_inner()).await?;
-    
-    Ok(HttpResponse::Ok().json(SuccessResponse::new("Password updated successfully".to_string())))
+    user_service::update_user_password(&pool, auth_user.user_id, request.into_inner()).await?;
+
+    Ok(HttpResponse::Ok().json(SuccessResponse::new(
+        "Password updated successfully".to_string(),
+    )))
 }
 
 /// Delete user (soft delete)
@@ -241,17 +251,21 @@ pub async fn delete_user(
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-    
+
     // Check if user is deleting their own account or has admin role
-    if user_id != auth_user.id {
+    if user_id != auth_user.user_id {
         // Here you would check if the authenticated user has admin role
         // For now, we'll prevent users from deleting other accounts
-        return Err(AppError::Forbidden("You can only delete your own account".to_string()));
+        return Err(AppError::Forbidden(
+            "You can only delete your own account".to_string(),
+        ));
     }
 
     user_service::delete_user(&pool, user_id).await?;
-    
-    Ok(HttpResponse::Ok().json(SuccessResponse::new("User deleted successfully".to_string())))
+
+    Ok(HttpResponse::Ok().json(SuccessResponse::new(
+        "User deleted successfully".to_string(),
+    )))
 }
 
 /// Delete current user account (soft delete)
@@ -261,9 +275,11 @@ pub async fn delete_current_user(
     pool: web::Data<PgPool>,
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    user_service::delete_user(&pool, auth_user.id).await?;
-    
-    Ok(HttpResponse::Ok().json(SuccessResponse::new("Account deleted successfully".to_string())))
+    user_service::delete_user(&pool, auth_user.user_id).await?;
+
+    Ok(HttpResponse::Ok().json(SuccessResponse::new(
+        "Account deleted successfully".to_string(),
+    )))
 }
 
 /// Award points to user
@@ -276,7 +292,7 @@ pub async fn award_points(
     _auth_user: AuthenticatedUser, // TODO: Check if user has admin role
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-    
+
     // Validate request
     request.validate()?;
 
@@ -284,7 +300,7 @@ pub async fn award_points(
     // Only admins should be able to award points
 
     let user = user_service::award_points(&pool, user_id, request.into_inner()).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }
 
@@ -297,12 +313,12 @@ pub async fn verify_email(
     _auth_user: AuthenticatedUser, // TODO: Check if user has admin role
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-    
+
     // TODO: Implement role-based access control
     // Only admins should be able to verify emails manually
 
     let user = user_service::verify_email(&pool, user_id).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }
 
@@ -315,11 +331,11 @@ pub async fn get_user_by_email(
     _auth_user: AuthenticatedUser, // TODO: Check if user has appropriate role
 ) -> Result<HttpResponse, AppError> {
     let email = path.into_inner();
-    
+
     // TODO: Implement role-based access control
     // This endpoint should be restricted to admins or specific roles
 
     let user = user_service::get_user_by_email(&pool, &email).await?;
-    
+
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }

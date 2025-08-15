@@ -18,6 +18,6 @@ async fn main() -> anyhow::Result<()> {
     // Create and run the application
     let application = Application::build(settings).await?;
     application.run_until_stopped().await?;
-    
+
     Ok(())
 }
