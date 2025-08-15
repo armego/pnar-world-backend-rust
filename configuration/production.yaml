@@ -1,0 +1,12 @@
+application:
+  host: "0.0.0.0"
+  port: 8000
+  cors:
+    allowed_origins: ["https://yourdomain.com", "*"]
+    allow_credentials: true
+
+jwt:
+  cookie_secure: true
+
+logging:
+  level: "warn"

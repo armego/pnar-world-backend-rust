@@ -1,0 +1,463 @@
+use crate::{
+    dto::{
+        user::{CreateUserRequest, UpdateUserRequest, UpdatePasswordRequest, UserQueryParams, AwardPointsRequest},
+        responses::{UserResponse, PaginatedResponse},
+    },
+    error::{AppError, AppResult},
+};
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use chrono::Utc;
+use sqlx::{PgPool, Row};
+use uuid::Uuid;
+
+/// Create a new user
+pub async fn create_user(
+    pool: &PgPool,
+    request: CreateUserRequest,
+) -> AppResult<UserResponse> {
+    // Check if user already exists
+    let existing_user = sqlx::query(
+        "SELECT id FROM users WHERE email = $1"
+    )
+    .bind(&request.email)
+    .fetch_optional(pool)
+    .await?;
+
+    if existing_user.is_some() {
+        return Err(AppError::Conflict("User with this email already exists".to_string()));
+    }
+
+    // Hash password
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let password_hash = argon2
+        .hash_password(request.password.as_bytes(), &salt)
+        .map_err(|e| AppError::Internal(format!("Failed to hash password: {}", e)))?
+        .to_string();
+
+    // Insert user
+    let user_id = Uuid::new_v4();
+    let now = Utc::now();
+    
+    let user_row = sqlx::query(
+        r#"
+        INSERT INTO users (
+            id, email, password, full_name, avatar_url, role, 
+            bio, preferred_language, settings, is_active, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        "#
+    )
+    .bind(user_id)
+    .bind(&request.email)
+    .bind(&password_hash)
+    .bind(&request.full_name)
+    .bind(&request.avatar_url)
+    .bind(request.role.unwrap_or_else(|| "user".to_string()))
+    .bind(&request.bio)
+    .bind(request.preferred_language.unwrap_or_else(|| "en".to_string()))
+    .bind(request.settings.unwrap_or_else(|| serde_json::json!({})))
+    .bind(request.is_active.unwrap_or(true))
+    .bind(now)
+    .bind(now)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(UserResponse {
+        id: user_row.get("id"),
+        email: user_row.get("email"),
+        full_name: user_row.get("full_name"),
+        avatar_url: user_row.get("avatar_url"),
+        role: user_row.get("role"),
+        translation_points: user_row.get("translation_points"),
+        bio: user_row.get("bio"),
+        preferred_language: user_row.get("preferred_language"),
+        settings: user_row.get("settings"),
+        is_active: user_row.get("is_active"),
+        is_email_verified: user_row.get("is_email_verified"),
+        created_at: user_row.get("created_at"),
+        updated_at: user_row.get("updated_at"),
+    })
+}
+
+/// Get user by ID
+pub async fn get_user_by_id(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> AppResult<UserResponse> {
+    let user_record = sqlx::query(
+        r#"
+        SELECT 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        FROM users 
+        WHERE id = $1
+        "#
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    Ok(UserResponse {
+        id: user_record.get("id"),
+        email: user_record.get("email"),
+        full_name: user_record.get("full_name"),
+        avatar_url: user_record.get("avatar_url"),
+        role: user_record.get("role"),
+        translation_points: user_record.get("translation_points"),
+        bio: user_record.get("bio"),
+        preferred_language: user_record.get("preferred_language"),
+        settings: user_record.get("settings"),
+        is_active: user_record.get("is_active"),
+        is_email_verified: user_record.get("is_email_verified"),
+        created_at: user_record.get("created_at"),
+        updated_at: user_record.get("updated_at"),
+    })
+}
+
+/// Get user by email
+pub async fn get_user_by_email(
+    pool: &PgPool,
+    email: &str,
+) -> AppResult<UserResponse> {
+    let user_record = sqlx::query(
+        r#"
+        SELECT 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        FROM users 
+        WHERE email = $1
+        "#
+    )
+    .bind(email)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    Ok(UserResponse {
+        id: user_record.get("id"),
+        email: user_record.get("email"),
+        full_name: user_record.get("full_name"),
+        avatar_url: user_record.get("avatar_url"),
+        role: user_record.get("role"),
+        translation_points: user_record.get("translation_points"),
+        bio: user_record.get("bio"),
+        preferred_language: user_record.get("preferred_language"),
+        settings: user_record.get("settings"),
+        is_active: user_record.get("is_active"),
+        is_email_verified: user_record.get("is_email_verified"),
+        created_at: user_record.get("created_at"),
+        updated_at: user_record.get("updated_at"),
+    })
+}
+
+/// List users with pagination and filtering
+pub async fn list_users(
+    pool: &PgPool,
+    query: UserQueryParams,
+) -> AppResult<PaginatedResponse<UserResponse>> {
+    let page = query.page.unwrap_or(1);
+    let per_page = query.per_page.unwrap_or(20);
+    let offset = (page - 1) * per_page;
+
+    // For now, implement a simple version without complex filtering
+    // This can be enhanced later with proper query building
+    let total_result = sqlx::query("SELECT COUNT(*) FROM users WHERE is_active = true")
+        .fetch_one(pool)
+        .await?;
+    let total: i64 = total_result.get(0);
+
+    let users_rows = sqlx::query(
+        r#"
+        SELECT 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        FROM users 
+        WHERE is_active = true
+        ORDER BY created_at DESC 
+        LIMIT $1 OFFSET $2
+        "#
+    )
+    .bind(per_page)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+
+    let user_responses: Vec<UserResponse> = users_rows.into_iter().map(|row| UserResponse {
+        id: row.get("id"),
+        email: row.get("email"),
+        full_name: row.get("full_name"),
+        avatar_url: row.get("avatar_url"),
+        role: row.get("role"),
+        translation_points: row.get("translation_points"),
+        bio: row.get("bio"),
+        preferred_language: row.get("preferred_language"),
+        settings: row.get("settings"),
+        is_active: row.get("is_active"),
+        is_email_verified: row.get("is_email_verified"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }).collect();
+
+    Ok(PaginatedResponse::new(user_responses, page, per_page, total))
+}
+
+/// Update user
+pub async fn update_user(
+    pool: &PgPool,
+    user_id: Uuid,
+    request: UpdateUserRequest,
+) -> AppResult<UserResponse> {
+    // Check if user exists
+    let existing_user = get_user_by_id(pool, user_id).await?;
+
+    // Check email uniqueness if email is being updated
+    if let Some(ref email) = request.email {
+        if email != &existing_user.email {
+            let email_exists = sqlx::query(
+                "SELECT id FROM users WHERE email = $1 AND id != $2"
+            )
+            .bind(&email)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?;
+
+            if email_exists.is_some() {
+                return Err(AppError::Conflict("Email already taken".to_string()));
+            }
+        }
+    }
+
+    // Update user
+    let user_record = sqlx::query(
+        r#"
+        UPDATE users 
+        SET 
+            email = COALESCE($1, email),
+            full_name = COALESCE($2, full_name),
+            avatar_url = COALESCE($3, avatar_url),
+            role = COALESCE($4, role),
+            bio = COALESCE($5, bio),
+            preferred_language = COALESCE($6, preferred_language),
+            settings = COALESCE($7, settings),
+            is_active = COALESCE($8, is_active),
+            is_email_verified = COALESCE($9, is_email_verified),
+            updated_at = NOW()
+        WHERE id = $10
+        RETURNING 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        "#
+    )
+    .bind(&request.email)
+    .bind(&request.full_name)
+    .bind(&request.avatar_url)
+    .bind(&request.role)
+    .bind(&request.bio)
+    .bind(&request.preferred_language)
+    .bind(&request.settings)
+    .bind(request.is_active)
+    .bind(request.is_email_verified)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(UserResponse {
+        id: user_record.get("id"),
+        email: user_record.get("email"),
+        full_name: user_record.get("full_name"),
+        avatar_url: user_record.get("avatar_url"),
+        role: user_record.get("role"),
+        translation_points: user_record.get("translation_points"),
+        bio: user_record.get("bio"),
+        preferred_language: user_record.get("preferred_language"),
+        settings: user_record.get("settings"),
+        is_active: user_record.get("is_active"),
+        is_email_verified: user_record.get("is_email_verified"),
+        created_at: user_record.get("created_at"),
+        updated_at: user_record.get("updated_at"),
+    })
+}
+
+/// Update user password
+pub async fn update_user_password(
+    pool: &PgPool,
+    user_id: Uuid,
+    request: UpdatePasswordRequest,
+) -> AppResult<()> {
+    // Get current user with password
+    let user_record = sqlx::query(
+        r#"
+        SELECT 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        FROM users 
+        WHERE id = $1
+        "#
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // Verify current password
+    let argon2 = Argon2::default();
+    let password: String = user_record.get("password");
+    let parsed_hash = PasswordHash::new(&password)
+        .map_err(|e| AppError::Internal(format!("Failed to parse password hash: {}", e)))?;
+
+    argon2
+        .verify_password(request.current_password.as_bytes(), &parsed_hash)
+        .map_err(|_| AppError::Unauthorized("Invalid current password".to_string()))?;
+
+    // Hash new password
+    let salt = SaltString::generate(&mut OsRng);
+    let new_password_hash = argon2
+        .hash_password(request.new_password.as_bytes(), &salt)
+        .map_err(|e| AppError::Internal(format!("Failed to hash new password: {}", e)))?
+        .to_string();
+
+    // Update password
+    sqlx::query(
+        "UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2"
+    )
+    .bind(&new_password_hash)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+/// Delete user (soft delete by setting is_active to false)
+pub async fn delete_user(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> AppResult<()> {
+    let result = sqlx::query(
+        "UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1"
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("User not found".to_string()));
+    }
+
+    Ok(())
+}
+
+/// Permanently delete user (hard delete)
+pub async fn permanently_delete_user(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> AppResult<()> {
+    let result = sqlx::query(
+        "DELETE FROM users WHERE id = $1"
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("User not found".to_string()));
+    }
+
+    Ok(())
+}
+
+/// Award or deduct points from user
+pub async fn award_points(
+    pool: &PgPool,
+    user_id: Uuid,
+    request: AwardPointsRequest,
+) -> AppResult<UserResponse> {
+    let user_row = sqlx::query(
+        r#"
+        UPDATE users 
+        SET 
+            translation_points = translation_points + $1,
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        "#
+    )
+    .bind(request.points)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    Ok(UserResponse {
+        id: user_row.get("id"),
+        email: user_row.get("email"),
+        full_name: user_row.get("full_name"),
+        avatar_url: user_row.get("avatar_url"),
+        role: user_row.get("role"),
+        translation_points: user_row.get("translation_points"),
+        bio: user_row.get("bio"),
+        preferred_language: user_row.get("preferred_language"),
+        settings: user_row.get("settings"),
+        is_active: user_row.get("is_active"),
+        is_email_verified: user_row.get("is_email_verified"),
+        created_at: user_row.get("created_at"),
+        updated_at: user_row.get("updated_at"),
+    })
+}
+
+/// Verify user email
+pub async fn verify_email(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> AppResult<UserResponse> {
+    let user_row = sqlx::query(
+        r#"
+        UPDATE users 
+        SET 
+            is_email_verified = true,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        "#
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    Ok(UserResponse {
+        id: user_row.get("id"),
+        email: user_row.get("email"),
+        full_name: user_row.get("full_name"),
+        avatar_url: user_row.get("avatar_url"),
+        role: user_row.get("role"),
+        translation_points: user_row.get("translation_points"),
+        bio: user_row.get("bio"),
+        preferred_language: user_row.get("preferred_language"),
+        settings: user_row.get("settings"),
+        is_active: user_row.get("is_active"),
+        is_email_verified: user_row.get("is_email_verified"),
+        created_at: user_row.get("created_at"),
+        updated_at: user_row.get("updated_at"),
+    })
+}
