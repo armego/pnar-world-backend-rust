@@ -82,7 +82,7 @@ pub async fn get_contribution(
     tag = "contributions",
     params(ContributionQueryParams),
     responses(
-        (status = 200, description = "Contributions retrieved successfully", body = Vec<ContributionResponse>),
+        (status = 200, description = "Contributions retrieved successfully", body = ContributionPaginatedResponse),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
     ),

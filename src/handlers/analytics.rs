@@ -113,7 +113,7 @@ pub async fn get_analytics(
     tag = "analytics",
     params(AnalyticsQueryParams),
     responses(
-        (status = 200, description = "Analytics records retrieved successfully", body = Vec<AnalyticsResponse>),
+        (status = 200, description = "Analytics records retrieved successfully", body = AnalyticsPaginatedResponse),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
     ),

@@ -1,6 +1,8 @@
 use crate::{
-    dto::responses::{AuthResponse, UserResponse},
-    dto::{LoginRequest, RegisterRequest},
+    dto::{
+        responses::{AuthResponse, UserResponse},
+        LoginRequest, RegisterRequest,
+    },
     error::AppError,
     utils::jwt,
 };

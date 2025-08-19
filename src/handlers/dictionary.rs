@@ -30,7 +30,7 @@ pub struct PaginationQuery {
     security(("bearer_auth" = [])),
     request_body = CreateDictionaryEntryRequest,
     responses(
-        (status = 201, description = "Dictionary entry created successfully", body = ApiResponse<DictionaryEntryResponse>),
+        (status = 201, description = "Dictionary entry created successfully", body = DictionaryEntryResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
         (status = 409, description = "Dictionary entry already exists"),
@@ -60,7 +60,7 @@ pub async fn create_entry(
         ("id" = Uuid, Path, description = "Dictionary entry ID")
     ),
     responses(
-        (status = 200, description = "Dictionary entry retrieved successfully", body = ApiResponse<DictionaryEntryResponse>),
+        (status = 200, description = "Dictionary entry retrieved successfully", body = DictionaryEntryResponse),
         (status = 401, description = "Unauthorized"),
         (status = 404, description = "Dictionary entry not found")
     )
@@ -115,7 +115,7 @@ pub async fn list_entries(
     security(("bearer_auth" = [])),
     request_body = SearchDictionaryRequest,
     responses(
-        (status = 200, description = "Search results retrieved successfully", body = ApiResponse<Vec<DictionaryEntryResponse>>),
+        (status = 200, description = "Search results retrieved successfully", body = DictionaryPaginatedResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
         (status = 422, description = "Validation error")
@@ -145,7 +145,7 @@ pub async fn search_entries(
     ),
     request_body = UpdateDictionaryEntryRequest,
     responses(
-        (status = 200, description = "Dictionary entry updated successfully", body = ApiResponse<DictionaryEntryResponse>),
+        (status = 200, description = "Dictionary entry updated successfully", body = DictionaryEntryResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
@@ -208,7 +208,7 @@ pub async fn delete_entry(
         ("id" = Uuid, Path, description = "Dictionary entry ID")
     ),
     responses(
-        (status = 200, description = "Dictionary entry verified successfully", body = ApiResponse<DictionaryEntryResponse>),
+        (status = 200, description = "Dictionary entry verified successfully", body = DictionaryEntryResponse),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden"),
         (status = 404, description = "Dictionary entry not found")

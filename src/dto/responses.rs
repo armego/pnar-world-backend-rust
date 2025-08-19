@@ -226,6 +226,81 @@ impl UserPaginatedResponse {
     }
 }
 
+/// Translations paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TranslationPaginatedResponse {
+    pub data: Vec<TranslationResponse>,
+    pub pagination: PaginationInfo,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl TranslationPaginatedResponse {
+    pub fn new(data: Vec<TranslationResponse>, page: i64, per_page: i64, total: i64) -> Self {
+        let pages = (total + per_page - 1) / per_page; // Ceiling division
+
+        Self {
+            data,
+            pagination: PaginationInfo {
+                page,
+                per_page,
+                total,
+                pages,
+            },
+            timestamp: Utc::now(),
+        }
+    }
+}
+
+/// Contributions paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ContributionPaginatedResponse {
+    pub data: Vec<ContributionResponse>,
+    pub pagination: PaginationInfo,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl ContributionPaginatedResponse {
+    pub fn new(data: Vec<ContributionResponse>, page: i64, per_page: i64, total: i64) -> Self {
+        let pages = (total + per_page - 1) / per_page; // Ceiling division
+
+        Self {
+            data,
+            pagination: PaginationInfo {
+                page,
+                per_page,
+                total,
+                pages,
+            },
+            timestamp: Utc::now(),
+        }
+    }
+}
+
+/// Analytics paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AnalyticsPaginatedResponse {
+    pub data: Vec<AnalyticsResponse>,
+    pub pagination: PaginationInfo,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl AnalyticsPaginatedResponse {
+    pub fn new(data: Vec<AnalyticsResponse>, page: i64, per_page: i64, total: i64) -> Self {
+        let pages = (total + per_page - 1) / per_page; // Ceiling division
+
+        Self {
+            data,
+            pagination: PaginationInfo {
+                page,
+                per_page,
+                total,
+                pages,
+            },
+            timestamp: Utc::now(),
+        }
+    }
+}
+
 /// Health check response
 #[derive(Debug, Serialize, ToSchema)]
 pub struct HealthResponse {
@@ -265,6 +340,8 @@ pub struct TranslationResponse {
     pub id: Uuid,
     #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
     pub user_id: Uuid,
+    #[schema(example = "user@example.com")]
+    pub created_by_email: Option<String>,
     #[schema(example = "Hello world")]
     pub source_text: String,
     #[schema(example = "en")]

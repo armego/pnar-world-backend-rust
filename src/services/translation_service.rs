@@ -45,6 +45,7 @@ pub async fn create_translation_request(
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        created_by_email: None, // For create, we don't join with users table
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -68,11 +69,13 @@ pub async fn get_translation_request(
 ) -> Result<TranslationResponse, AppError> {
     let record = sqlx::query(
         r#"
-        SELECT id, user_id, source_text, source_language, target_language,
-               translated_text, status, translation_type, confidence_score,
-               reviewed, reviewed_by, reviewed_at, metadata, created_at, updated_at
-        FROM translation_requests 
-        WHERE id = $1 AND user_id = $2
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as created_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        WHERE tr.id = $1 AND tr.user_id = $2
         "#,
     )
     .bind(request_id)
@@ -86,6 +89,7 @@ pub async fn get_translation_request(
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        created_by_email: record.get("created_by_email"),
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -112,12 +116,14 @@ pub async fn list_translation_requests(
 
     let records = sqlx::query(
         r#"
-        SELECT id, user_id, source_text, source_language, target_language,
-               translated_text, status, translation_type, confidence_score,
-               reviewed, reviewed_by, reviewed_at, metadata, created_at, updated_at
-        FROM translation_requests 
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as created_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        WHERE tr.user_id = $1
+        ORDER BY tr.created_at DESC
         LIMIT $2 OFFSET $3
         "#,
     )
@@ -132,6 +138,7 @@ pub async fn list_translation_requests(
         .map(|record| TranslationResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
+            created_by_email: record.get("created_by_email"),
             source_text: record.get("source_text"),
             source_language: record.get("source_language"),
             target_language: record.get("target_language"),
@@ -153,40 +160,74 @@ pub async fn update_translation_request(
     pool: &PgPool,
     request_id: Uuid,
     user_id: Uuid,
+    user_role: &str,
     request: UpdateTranslationRequest,
 ) -> Result<TranslationResponse, AppError> {
-    let record = sqlx::query(
+    // First, check if user can update this translation (owner or admin)
+    let can_update = if user_role == "admin" {
+        // Admin can update any translation
+        sqlx::query("SELECT id FROM translation_requests WHERE id = $1")
+            .bind(request_id)
+            .fetch_optional(pool)
+            .await?
+            .is_some()
+    } else {
+        // Regular user can only update their own translations
+        sqlx::query("SELECT id FROM translation_requests WHERE id = $1 AND user_id = $2")
+            .bind(request_id)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?
+            .is_some()
+    };
+
+    if !can_update {
+        return Err(AppError::NotFound("Translation request not found".to_string()));
+    }
+
+    // Update the translation
+    sqlx::query(
         r#"
         UPDATE translation_requests 
         SET 
-            translated_text = COALESCE($3, translated_text),
-            status = COALESCE($4, status),
-            confidence_score = COALESCE($5, confidence_score),
-            reviewed = COALESCE($6, reviewed),
-            metadata = COALESCE($7, metadata),
+            translated_text = COALESCE($2, translated_text),
+            status = COALESCE($3, status),
+            confidence_score = COALESCE($4, confidence_score),
+            reviewed = COALESCE($5, reviewed),
+            metadata = COALESCE($6, metadata),
             updated_at = NOW()
-        WHERE id = $1 AND user_id = $2
-        RETURNING id, user_id, source_text, source_language, target_language,
-                  translated_text, status, translation_type, confidence_score,
-                  reviewed, reviewed_by, reviewed_at, metadata, created_at, updated_at
+        WHERE id = $1
         "#,
     )
     .bind(request_id)
-    .bind(user_id)
     .bind(&request.translated_text)
     .bind(&request.status)
     .bind(request.confidence_score)
     .bind(request.reviewed)
     .bind(&request.metadata)
-    .fetch_optional(pool)
+    .execute(pool)
     .await?;
 
-    let record =
-        record.ok_or_else(|| AppError::NotFound("Translation request not found".to_string()))?;
+    // Fetch the updated record with user email
+    let record = sqlx::query(
+        r#"
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as created_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        WHERE tr.id = $1
+        "#,
+    )
+    .bind(request_id)
+    .fetch_one(pool)
+    .await?;
 
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        created_by_email: record.get("created_by_email"),
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -207,12 +248,22 @@ pub async fn delete_translation_request(
     pool: &PgPool,
     request_id: Uuid,
     user_id: Uuid,
+    user_role: &str,
 ) -> Result<(), AppError> {
-    let result = sqlx::query("DELETE FROM translation_requests WHERE id = $1 AND user_id = $2")
-        .bind(request_id)
-        .bind(user_id)
-        .execute(pool)
-        .await?;
+    // Check if user can delete this translation (owner or admin)
+    let (query_str, bind_user_id) = if user_role == "admin" {
+        ("DELETE FROM translation_requests WHERE id = $1", false)
+    } else {
+        ("DELETE FROM translation_requests WHERE id = $1 AND user_id = $2", true)
+    };
+
+    let mut query = sqlx::query(query_str).bind(request_id);
+    
+    if bind_user_id {
+        query = query.bind(user_id);
+    }
+    
+    let result = query.execute(pool).await?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound(

@@ -29,9 +29,14 @@ impl Claims {
     }
 }
 
+fn get_jwt_secret() -> Result<String, AppError> {
+    Ok(std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "your-secret-key-here-change-me-in-production".to_string()))
+}
+
 pub fn generate_token(user_id: Uuid) -> Result<String, AppError> {
     let claims = Claims::new(user_id);
-    let secret = get_jwt_secret();
+    let secret = get_jwt_secret()?;
 
     encode(
         &Header::default(),
@@ -44,14 +49,13 @@ pub fn generate_token(user_id: Uuid) -> Result<String, AppError> {
 pub fn generate_refresh_token(user_id: Uuid) -> Result<String, AppError> {
     let now = Utc::now();
     let expiry = now + Duration::days(30); // 30 days for refresh token
+    let secret = get_jwt_secret()?;
 
     let claims = Claims {
         sub: user_id.to_string(),
         exp: expiry.timestamp(),
         iat: now.timestamp(),
     };
-
-    let secret = get_jwt_secret();
 
     encode(
         &Header::default(),
@@ -62,8 +66,8 @@ pub fn generate_refresh_token(user_id: Uuid) -> Result<String, AppError> {
 }
 
 pub fn verify_token(token: &str) -> Result<Claims, AppError> {
-    let secret = get_jwt_secret();
-
+    let secret = get_jwt_secret()?;
+    
     decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_ref()),
@@ -71,8 +75,4 @@ pub fn verify_token(token: &str) -> Result<Claims, AppError> {
     )
     .map(|data| data.claims)
     .map_err(|e| AppError::Unauthorized(format!("Invalid token: {}", e)))
-}
-
-fn get_jwt_secret() -> String {
-    std::env::var("JWT_SECRET").unwrap_or_else(|_| "your-secret-key".to_string())
 }

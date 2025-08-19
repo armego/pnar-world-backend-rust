@@ -1,9 +1,10 @@
 use crate::{error::AppError, utils::jwt};
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, FromRequest, HttpMessage, HttpRequest,
+    web, Error, FromRequest, HttpMessage, HttpRequest,
 };
 use futures_util::future::LocalBoxFuture;
+use sqlx::{PgPool, Row};
 use std::{
     future::{ready, Ready},
     rc::Rc,
@@ -16,6 +17,18 @@ pub struct AuthenticatedUser {
     pub role: String,
 }
 
+impl AuthenticatedUser {
+    /// Check if the user has admin role
+    pub fn is_admin(&self) -> bool {
+        self.role == "admin"
+    }
+
+    /// Check if the user can access another user's data (admin or same user)
+    pub fn can_access_user(&self, target_user_id: Uuid) -> bool {
+        self.is_admin() || self.user_id == target_user_id
+    }
+}
+
 impl FromRequest for AuthenticatedUser {
     type Error = AppError;
     type Future = Ready<Result<Self, Self::Error>>;
@@ -25,6 +38,25 @@ impl FromRequest for AuthenticatedUser {
         let user = extensions.get::<AuthenticatedUser>().cloned();
 
         ready(user.ok_or_else(|| AppError::Unauthorized("User not authenticated".to_string())))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AdminUser(pub AuthenticatedUser);
+
+impl FromRequest for AdminUser {
+    type Error = AppError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let extensions = req.extensions();
+        let user = extensions.get::<AuthenticatedUser>().cloned();
+
+        ready(match user {
+            Some(user) if user.is_admin() => Ok(AdminUser(user)),
+            Some(_) => Err(AppError::Forbidden("Admin access required".to_string())),
+            None => Err(AppError::Unauthorized("User not authenticated".to_string())),
+        })
     }
 }
 
@@ -89,9 +121,25 @@ where
                 match jwt::verify_token(&token) {
                     Ok(claims) => {
                         let user_id = claims.user_id()?;
+                        
+                        // Get the database pool from app data
+                        let pool = req.app_data::<web::Data<PgPool>>()
+                            .ok_or_else(|| AppError::Internal("Database pool not found".to_string()))?;
+
+                        // Fetch user role from database
+                        let user_role = match sqlx::query("SELECT role FROM users WHERE id = $1")
+                            .bind(user_id)
+                            .fetch_optional(pool.get_ref())
+                            .await
+                        {
+                            Ok(Some(row)) => row.get::<String, _>("role"),
+                            Ok(None) => return Err(AppError::Unauthorized("User not found".to_string()).into()),
+                            Err(_) => "user".to_string(), // Fallback to default role if DB query fails
+                        };
+
                         let user = AuthenticatedUser {
                             user_id,
-                            role: "user".to_string(), // TODO: fetch from database or JWT claims
+                            role: user_role,
                         };
                         req.extensions_mut().insert(user);
                         service.call(req).await

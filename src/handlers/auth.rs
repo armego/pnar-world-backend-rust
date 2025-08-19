@@ -1,5 +1,5 @@
 use crate::{
-    dto::{ApiResponse, LoginRequest, RegisterRequest},
+    dto::{responses::AuthApiResponse, ApiResponse, LoginRequest, RegisterRequest},
     error::AppError,
     middleware::auth::AuthenticatedUser,
     services::{auth_service, user_service},
@@ -14,7 +14,7 @@ use validator::Validate;
     tag = "auth",
     request_body = RegisterRequest,
     responses(
-        (status = 201, description = "User registered successfully", body = ApiResponse<AuthResponse>),
+        (status = 201, description = "User registered successfully", body = AuthApiResponse),
         (status = 400, description = "Invalid input data"),
         (status = 409, description = "User already exists")
     )
@@ -28,7 +28,7 @@ pub async fn register(
 
     let auth_response = auth_service::register_user(&pool, request.into_inner()).await?;
 
-    Ok(HttpResponse::Created().json(ApiResponse::new(auth_response)))
+    Ok(HttpResponse::Created().json(AuthApiResponse::new(auth_response)))
 }
 
 #[utoipa::path(
@@ -37,7 +37,7 @@ pub async fn register(
     tag = "auth",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "Login successful", body = ApiResponse<AuthResponse>),
+        (status = 200, description = "Login successful", body = AuthApiResponse),
         (status = 400, description = "Invalid input data"),
         (status = 401, description = "Invalid credentials")
     )
@@ -51,7 +51,7 @@ pub async fn login(
 
     let auth_response = auth_service::login_user(&pool, request.into_inner()).await?;
 
-    Ok(HttpResponse::Ok().json(ApiResponse::new(auth_response)))
+    Ok(HttpResponse::Ok().json(AuthApiResponse::new(auth_response)))
 }
 
 #[utoipa::path(

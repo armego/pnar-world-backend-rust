@@ -19,7 +19,7 @@ pub struct TranslationQueryParams {
 /// Create a new translation request
 #[utoipa::path(
     post,
-    path = "/api/translations",
+    path = "/api/v1/translations",
     tag = "translations",
     request_body = CreateTranslationRequest,
     responses(
@@ -29,7 +29,7 @@ pub struct TranslationQueryParams {
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
 pub async fn create_translation(
@@ -50,7 +50,7 @@ pub async fn create_translation(
 /// Get a translation request by ID
 #[utoipa::path(
     get,
-    path = "/api/translations/{id}",
+    path = "/api/v1/translations/{id}",
     tag = "translations",
     params(
         ("id" = Uuid, Path, description = "Translation request ID")
@@ -62,7 +62,7 @@ pub async fn create_translation(
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
 pub async fn get_translation(
@@ -83,16 +83,16 @@ pub async fn get_translation(
 /// List translation requests for the authenticated user
 #[utoipa::path(
     get,
-    path = "/api/translations",
+    path = "/api/v1/translations",
     tag = "translations",
     params(TranslationQueryParams),
     responses(
-        (status = 200, description = "Translation requests retrieved successfully", body = Vec<TranslationResponse>),
+        (status = 200, description = "Translation requests retrieved successfully", body = TranslationPaginatedResponse),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
 pub async fn list_translations(
@@ -117,7 +117,7 @@ pub async fn list_translations(
 /// Update a translation request
 #[utoipa::path(
     put,
-    path = "/api/translations/{id}",
+    path = "/api/v1/translations/{id}",
     tag = "translations",
     params(
         ("id" = Uuid, Path, description = "Translation request ID")
@@ -130,7 +130,7 @@ pub async fn list_translations(
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
 pub async fn update_translation(
@@ -143,6 +143,7 @@ pub async fn update_translation(
         pool.get_ref(),
         path.into_inner(),
         user.user_id,
+        &user.role,
         req.into_inner(),
     )
     .await?;
@@ -153,7 +154,7 @@ pub async fn update_translation(
 /// Delete a translation request
 #[utoipa::path(
     delete,
-    path = "/api/translations/{id}",
+    path = "/api/v1/translations/{id}",
     tag = "translations",
     params(
         ("id" = Uuid, Path, description = "Translation request ID")
@@ -165,7 +166,7 @@ pub async fn update_translation(
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
 pub async fn delete_translation(
@@ -177,6 +178,7 @@ pub async fn delete_translation(
         pool.get_ref(),
         path.into_inner(),
         user.user_id,
+        &user.role,
     )
     .await?;
 

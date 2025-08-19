@@ -7,7 +7,7 @@ use crate::{
         },
     },
     error::AppError,
-    middleware::auth::AuthenticatedUser,
+    middleware::auth::{AdminUser, AuthenticatedUser},
     services::user_service,
 };
 use actix_web::{delete, get, patch, post, put, web, HttpResponse};
@@ -26,13 +26,19 @@ use validator::Validate;
     responses(
         (status = 201, description = "User created successfully", body = UserApiResponse),
         (status = 400, description = "Invalid input data"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required"),
         (status = 409, description = "User already exists")
+    ),
+    security(
+        ("bearer_auth" = [])
     )
 )]
 #[post("")]
 pub async fn create_user(
     pool: web::Data<PgPool>,
     request: web::Json<CreateUserRequest>,
+    _admin_user: AdminUser, // Only admins can create users
 ) -> Result<HttpResponse, AppError> {
     // Validate request
     request.validate()?;
@@ -53,15 +59,29 @@ pub async fn create_user(
     ),
     responses(
         (status = 200, description = "User retrieved successfully", body = UserApiResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
         (status = 404, description = "User not found")
+    ),
+    security(
+        ("bearer_auth" = [])
     )
 )]
 #[get("/{id}")]
 pub async fn get_user(
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
+    auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
+    
+    // Check if user can access this profile (admin or own profile)
+    if !auth_user.can_access_user(user_id) {
+        return Err(AppError::Forbidden(
+            "You can only access your own profile or you need admin privileges".to_string(),
+        ));
+    }
+
     let user = user_service::get_user_by_id(&pool, user_id).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
@@ -100,14 +120,20 @@ pub async fn get_current_user(
     tag = "users",
     params(UserQueryParams),
     responses(
-        (status = 200, description = "Users retrieved successfully", body = PaginatedResponse<UserResponse>),
-        (status = 400, description = "Invalid query parameters")
+        (status = 200, description = "Users retrieved successfully", body = UserPaginatedResponse),
+        (status = 400, description = "Invalid query parameters"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required")
+    ),
+    security(
+        ("bearer_auth" = [])
     )
 )]
 #[get("")]
 pub async fn list_users(
     pool: web::Data<PgPool>,
     query: web::Query<UserQueryParams>,
+    _admin_user: AdminUser, // Only admins can list all users
 ) -> Result<HttpResponse, AppError> {
     // Validate query parameters
     query.validate()?;
@@ -134,7 +160,7 @@ pub async fn list_users(
         (status = 200, description = "User updated successfully", body = UserApiResponse),
         (status = 400, description = "Invalid input data"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
+        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
         (status = 404, description = "User not found")
     )
 )]
@@ -150,11 +176,11 @@ pub async fn update_user(
     // Validate request
     request.validate()?;
 
-    // Check if user is updating their own profile or has admin role
-    if user_id != auth_user.user_id {
-        // Here you would check if the authenticated user has admin role
-        // For now, we'll allow any authenticated user to update any profile
-        // In production, you should implement proper role-based access control
+    // Check if user can update this profile (admin or own profile)
+    if !auth_user.can_access_user(user_id) {
+        return Err(AppError::Forbidden(
+            "You can only update your own profile or you need admin privileges".to_string(),
+        ));
     }
 
     let user = user_service::update_user(&pool, user_id, request.into_inner()).await?;
@@ -181,6 +207,25 @@ pub async fn update_current_user(
 
 /// Update user password
 /// PATCH /api/v1/users/{id}/password
+#[utoipa::path(
+    patch,
+    path = "/api/v1/users/{id}/password",
+    tag = "users",
+    params(
+        ("id" = Uuid, Path, description = "User ID")
+    ),
+    request_body = UpdatePasswordRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Password updated successfully", body = SuccessResponse),
+        (status = 400, description = "Invalid input data"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
+        (status = 404, description = "User not found")
+    )
+)]
 #[patch("/{id}/password")]
 pub async fn update_user_password(
     pool: web::Data<PgPool>,
@@ -193,10 +238,10 @@ pub async fn update_user_password(
     // Validate request
     request.validate()?;
 
-    // Only allow users to update their own password
-    if user_id != auth_user.user_id {
+    // Check if user can update this password (admin or own profile)
+    if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only update your own password".to_string(),
+            "You can only update your own password or you need admin privileges".to_string(),
         ));
     }
 
@@ -240,7 +285,7 @@ pub async fn update_current_user_password(
     responses(
         (status = 200, description = "User deleted successfully", body = SuccessResponse),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
+        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
         (status = 404, description = "User not found")
     )
 )]
@@ -252,12 +297,10 @@ pub async fn delete_user(
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
 
-    // Check if user is deleting their own account or has admin role
-    if user_id != auth_user.user_id {
-        // Here you would check if the authenticated user has admin role
-        // For now, we'll prevent users from deleting other accounts
+    // Check if user can delete this account (admin or own account)
+    if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only delete your own account".to_string(),
+            "You can only delete your own account or you need admin privileges".to_string(),
         ));
     }
 
@@ -284,20 +327,36 @@ pub async fn delete_current_user(
 
 /// Award points to user
 /// POST /api/v1/users/{id}/points
+#[utoipa::path(
+    post,
+    path = "/api/v1/users/{id}/points",
+    tag = "users",
+    params(
+        ("id" = Uuid, Path, description = "User ID")
+    ),
+    request_body = AwardPointsRequest,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Points awarded successfully", body = UserApiResponse),
+        (status = 400, description = "Invalid input data"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required"),
+        (status = 404, description = "User not found")
+    )
+)]
 #[post("/{id}/points")]
 pub async fn award_points(
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
     request: web::Json<AwardPointsRequest>,
-    _auth_user: AuthenticatedUser, // TODO: Check if user has admin role
+    _admin_user: AdminUser, // Only admins can award points
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
 
     // Validate request
     request.validate()?;
-
-    // TODO: Implement role-based access control
-    // Only admins should be able to award points
 
     let user = user_service::award_points(&pool, user_id, request.into_inner()).await?;
 
@@ -306,16 +365,30 @@ pub async fn award_points(
 
 /// Verify user email
 /// POST /api/v1/users/{id}/verify-email
+#[utoipa::path(
+    post,
+    path = "/api/v1/users/{id}/verify-email",
+    tag = "users",
+    params(
+        ("id" = Uuid, Path, description = "User ID")
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Email verified successfully", body = UserApiResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required"),
+        (status = 404, description = "User not found")
+    )
+)]
 #[post("/{id}/verify-email")]
 pub async fn verify_email(
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
-    _auth_user: AuthenticatedUser, // TODO: Check if user has admin role
+    _admin_user: AdminUser, // Only admins can verify emails manually
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
-
-    // TODO: Implement role-based access control
-    // Only admins should be able to verify emails manually
 
     let user = user_service::verify_email(&pool, user_id).await?;
 
@@ -324,16 +397,30 @@ pub async fn verify_email(
 
 /// Get user by email
 /// GET /api/v1/users/email/{email}
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/email/{email}",
+    tag = "users",
+    params(
+        ("email" = String, Path, description = "User email")
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "User retrieved successfully", body = UserApiResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin access required"),
+        (status = 404, description = "User not found")
+    )
+)]
 #[get("/email/{email}")]
 pub async fn get_user_by_email(
     pool: web::Data<PgPool>,
     path: web::Path<String>,
-    _auth_user: AuthenticatedUser, // TODO: Check if user has appropriate role
+    _admin_user: AdminUser, // Only admins can search users by email
 ) -> Result<HttpResponse, AppError> {
     let email = path.into_inner();
-
-    // TODO: Implement role-based access control
-    // This endpoint should be restricted to admins or specific roles
 
     let user = user_service::get_user_by_email(&pool, &email).await?;
 
