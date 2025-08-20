@@ -1,4 +1,5 @@
 use crate::{
+    constants::error_messages,
     dto::{
         responses::{ApiResponse, SuccessResponse},
         user::{
@@ -78,7 +79,7 @@ pub async fn get_user(
     // Check if user can access this profile (admin or own profile)
     if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only access your own profile or you need admin privileges".to_string(),
+            error_messages::ONLY_OWN_PROFILE_OR_ADMIN,
         ));
     }
 
@@ -179,7 +180,7 @@ pub async fn update_user(
     // Check if user can update this profile (admin or own profile)
     if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only update your own profile or you need admin privileges".to_string(),
+            error_messages::ONLY_UPDATE_OWN_PROFILE_OR_ADMIN,
         ));
     }
 
@@ -241,7 +242,7 @@ pub async fn update_user_password(
     // Check if user can update this password (admin or own profile)
     if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only update your own password or you need admin privileges".to_string(),
+            error_messages::ONLY_UPDATE_OWN_PASSWORD_OR_ADMIN,
         ));
     }
 
@@ -300,7 +301,7 @@ pub async fn delete_user(
     // Check if user can delete this account (admin or own account)
     if !auth_user.can_access_user(user_id) {
         return Err(AppError::Forbidden(
-            "You can only delete your own account or you need admin privileges".to_string(),
+            error_messages::ONLY_DELETE_OWN_ACCOUNT_OR_ADMIN,
         ));
     }
 

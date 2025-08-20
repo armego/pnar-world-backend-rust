@@ -1,4 +1,4 @@
-use crate::{error::AppError, utils::jwt};
+use crate::{constants::{error_messages, roles}, error::AppError, utils::jwt};
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     web, Error, FromRequest, HttpMessage, HttpRequest,
@@ -18,14 +18,96 @@ pub struct AuthenticatedUser {
 }
 
 impl AuthenticatedUser {
-    /// Check if the user has admin role
-    pub fn is_admin(&self) -> bool {
-        self.role == "admin"
+    /// Check if the user has superadmin role (highest level access)
+    pub fn is_superadmin(&self) -> bool {
+        self.role == roles::SUPERADMIN
     }
 
-    /// Check if the user can access another user's data (admin or same user)
+    /// Check if the user has admin role or higher
+    pub fn is_admin(&self) -> bool {
+        self.is_superadmin() || self.role == roles::ADMIN
+    }
+
+    /// Check if the user has moderator role or higher
+    pub fn is_moderator(&self) -> bool {
+        self.is_admin() || self.role == roles::MODERATOR
+    }
+
+    /// Check if the user has translator role or higher
+    pub fn is_translator(&self) -> bool {
+        self.is_moderator() || self.role == roles::TRANSLATOR
+    }
+
+    /// Check if the user has contributor role or higher
+    pub fn is_contributor(&self) -> bool {
+        self.is_translator() || self.role == roles::CONTRIBUTOR
+    }
+
+    /// Check if the user can access another user's data
+    /// Superadmin and admin can access any user's data
+    /// Regular users can only access their own data
     pub fn can_access_user(&self, target_user_id: Uuid) -> bool {
         self.is_admin() || self.user_id == target_user_id
+    }
+
+    /// Check if the user can modify dictionary entries
+    /// Translators and above can modify entries
+    pub fn can_modify_dictionary(&self) -> bool {
+        self.is_translator()
+    }
+
+    /// Check if the user can verify dictionary entries
+    /// Moderators and above can verify entries
+    pub fn can_verify_dictionary(&self) -> bool {
+        self.is_moderator()
+    }
+
+    /// Check if the user can review translations
+    /// Translators and above can review translations
+    pub fn can_review_translations(&self) -> bool {
+        self.is_translator()
+    }
+
+    /// Check if the user can review contributions
+    /// Moderators and above can review contributions
+    pub fn can_review_contributions(&self) -> bool {
+        self.is_moderator()
+    }
+
+    /// Check if the user can access analytics data
+    /// Moderators and above can access analytics
+    pub fn can_access_analytics(&self) -> bool {
+        self.is_moderator()
+    }
+
+    /// Check if the user can manage other users
+    /// Admins and above can manage users
+    pub fn can_manage_users(&self) -> bool {
+        self.is_admin()
+    }
+
+    /// Check if the user can delete any content
+    /// Admins and above can delete any content
+    pub fn can_delete_any_content(&self) -> bool {
+        self.is_admin()
+    }
+
+    /// Get role hierarchy level (higher number = more permissions)
+    pub fn role_level(&self) -> u8 {
+        match self.role.as_str() {
+            roles::SUPERADMIN => 6,
+            roles::ADMIN => 5,
+            roles::MODERATOR => 4,
+            roles::TRANSLATOR => 3,
+            roles::CONTRIBUTOR => 2,
+            roles::USER => 1,
+            _ => 0, // Unknown role gets lowest access
+        }
+    }
+
+    /// Check if user has at least the specified role level
+    pub fn has_role_level(&self, required_level: u8) -> bool {
+        self.role_level() >= required_level
     }
 }
 
@@ -37,7 +119,28 @@ impl FromRequest for AuthenticatedUser {
         let extensions = req.extensions();
         let user = extensions.get::<AuthenticatedUser>().cloned();
 
-        ready(user.ok_or_else(|| AppError::Unauthorized("User not authenticated".to_string())))
+        ready(user.ok_or_else(|| AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)))
+    }
+}
+
+// Role-based extractors for different access levels
+
+#[derive(Debug, Clone)]
+pub struct SuperAdminUser(pub AuthenticatedUser);
+
+impl FromRequest for SuperAdminUser {
+    type Error = AppError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let extensions = req.extensions();
+        let user = extensions.get::<AuthenticatedUser>().cloned();
+
+        ready(match user {
+            Some(user) if user.is_superadmin() => Ok(SuperAdminUser(user)),
+            Some(_) => Err(AppError::Forbidden(error_messages::SUPERADMIN_ACCESS_REQUIRED)),
+            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
+        })
     }
 }
 
@@ -54,8 +157,65 @@ impl FromRequest for AdminUser {
 
         ready(match user {
             Some(user) if user.is_admin() => Ok(AdminUser(user)),
-            Some(_) => Err(AppError::Forbidden("Admin access required".to_string())),
-            None => Err(AppError::Unauthorized("User not authenticated".to_string())),
+            Some(_) => Err(AppError::Forbidden(error_messages::ADMIN_ACCESS_REQUIRED)),
+            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ModeratorUser(pub AuthenticatedUser);
+
+impl FromRequest for ModeratorUser {
+    type Error = AppError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let extensions = req.extensions();
+        let user = extensions.get::<AuthenticatedUser>().cloned();
+
+        ready(match user {
+            Some(user) if user.is_moderator() => Ok(ModeratorUser(user)),
+            Some(_) => Err(AppError::Forbidden(error_messages::MODERATOR_ACCESS_REQUIRED)),
+            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TranslatorUser(pub AuthenticatedUser);
+
+impl FromRequest for TranslatorUser {
+    type Error = AppError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let extensions = req.extensions();
+        let user = extensions.get::<AuthenticatedUser>().cloned();
+
+        ready(match user {
+            Some(user) if user.is_translator() => Ok(TranslatorUser(user)),
+            Some(_) => Err(AppError::Forbidden(error_messages::TRANSLATOR_ACCESS_REQUIRED)),
+            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContributorUser(pub AuthenticatedUser);
+
+impl FromRequest for ContributorUser {
+    type Error = AppError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let extensions = req.extensions();
+        let user = extensions.get::<AuthenticatedUser>().cloned();
+
+        ready(match user {
+            Some(user) if user.is_contributor() => Ok(ContributorUser(user)),
+            Some(_) => Err(AppError::Forbidden(error_messages::CONTRIBUTOR_ACCESS_REQUIRED)),
+            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
         })
     }
 }
@@ -105,7 +265,6 @@ where
             .get("Authorization")
             .and_then(|auth_header| auth_header.to_str().ok())
             .and_then(|auth_str| {
-                println!("Auth header: {}", auth_str); // Debug log
                 if auth_str.starts_with("Bearer ") {
                     Some(auth_str[7..].to_string())
                 } else {
@@ -113,11 +272,11 @@ where
                 }
             });
 
-        let service = self.service.clone();
+        let service = Rc::clone(&self.service);
 
         Box::pin(async move {
             if let Some(token) = token {
-                println!("Token found: {}", &token[..std::cmp::min(20, token.len())]); // Debug log
+                tracing::debug!("Token found: {}", &token[..std::cmp::min(20, token.len())]);
                 match jwt::verify_token(&token) {
                     Ok(claims) => {
                         let user_id = claims.user_id()?;
@@ -133,7 +292,7 @@ where
                             .await
                         {
                             Ok(Some(row)) => row.get::<String, _>("role"),
-                            Ok(None) => return Err(AppError::Unauthorized("User not found".to_string()).into()),
+                            Ok(None) => return Err(AppError::Unauthorized(error_messages::USER_NOT_FOUND).into()),
                             Err(_) => "user".to_string(), // Fallback to default role if DB query fails
                         };
 
@@ -145,13 +304,13 @@ where
                         service.call(req).await
                     }
                     Err(err) => {
-                        println!("JWT verification failed: {}", err); // Debug log
+                        tracing::warn!("JWT verification failed: {}", err);
                         Err(err.into())
                     }
                 }
             } else {
-                println!("No token found in request"); // Debug log
-                Err(AppError::Unauthorized("Missing authentication token".to_string()).into())
+                tracing::debug!("No token found in request");
+                Err(AppError::Unauthorized(error_messages::MISSING_AUTH_TOKEN).into())
             }
         })
     }

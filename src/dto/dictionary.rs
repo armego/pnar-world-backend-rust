@@ -14,6 +14,13 @@ pub struct CreateDictionaryEntryRequest {
     pub pnar_word: String,
 
     #[validate(length(
+        max = 255,
+        message = "Pnar word keyboard friendly must be less than 255 characters"
+    ))]
+    #[schema(example = "ka")]
+    pub pnar_word_kbf: Option<String>,
+
+    #[validate(length(
         min = 1,
         max = 255,
         message = "English word must be between 1 and 255 characters"
@@ -64,6 +71,13 @@ pub struct UpdateDictionaryEntryRequest {
     ))]
     #[schema(example = "ka")]
     pub pnar_word: Option<String>,
+
+    #[validate(length(
+        max = 255,
+        message = "Pnar word keyboard friendly must be less than 255 characters"
+    ))]
+    #[schema(example = "ka")]
+    pub pnar_word_kbf: Option<String>,
 
     #[validate(length(
         min = 1,

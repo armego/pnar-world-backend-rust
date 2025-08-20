@@ -2,26 +2,30 @@ use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::OpenApi;
 use utoipa::{openapi, Modify};
 
-use crate::dto::{
-    analytics::{CreateAnalyticsRequest, UpdateAnalyticsRequest},
-    auth::{LoginRequest, RefreshTokenRequest, RegisterRequest},
-    contribution::{CreateContributionRequest, UpdateContributionRequest},
-    dictionary::{
-        CreateDictionaryEntryRequest, SearchDictionaryRequest, SearchType,
-        UpdateDictionaryEntryRequest,
+use crate::{
+    constants::{alphabet::PnarCharacter, roles::{UserRole, RoleInfo}},
+    dto::{
+        analytics::{CreateAnalyticsRequest, UpdateAnalyticsRequest},
+        auth::{LoginRequest, RefreshTokenRequest, RegisterRequest},
+        contribution::{CreateContributionRequest, UpdateContributionRequest},
+        dictionary::{
+            CreateDictionaryEntryRequest, SearchDictionaryRequest, SearchType,
+            UpdateDictionaryEntryRequest,
+        },
+        responses::{
+            AnalyticsResponse, AnalyticsPaginatedResponse, AuthApiResponse, 
+            AuthResponse, ContributionResponse, ContributionPaginatedResponse, DictionaryEntryResponse, 
+            DictionaryPaginatedResponse, HealthResponse, PaginationInfo, SuccessResponse,
+            TranslationResponse, TranslationPaginatedResponse, UserApiResponse, UserPaginatedResponse, 
+            UserResponse,
+        },
+        translation::{CreateTranslationRequest, UpdateTranslationRequest},
+        user::{
+            AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
+            UserQueryParams,
+        },
     },
-    responses::{
-        AnalyticsResponse,     AnalyticsPaginatedResponse, AuthApiResponse, AuthResponse, 
-        ContributionResponse, ContributionPaginatedResponse, DictionaryEntryResponse, 
-        DictionaryPaginatedResponse, HealthResponse, PaginationInfo, SuccessResponse,
-        TranslationResponse, TranslationPaginatedResponse, UserApiResponse, UserPaginatedResponse, 
-        UserResponse,
-    },
-    translation::{CreateTranslationRequest, UpdateTranslationRequest},
-    user::{
-        AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
-        UserQueryParams,
-    },
+    handlers::alphabet::{ConvertTextRequest, ConvertTextResponse, ConversionDirection},
 };
 
 #[derive(OpenApi)]
@@ -61,6 +65,9 @@ use crate::dto::{
         crate::handlers::analytics::update_analytics,
         crate::handlers::analytics::delete_analytics,
         crate::handlers::analytics::get_word_stats,
+        crate::handlers::alphabet::list_alphabets,
+        crate::handlers::alphabet::convert_text,
+        crate::handlers::roles::list_roles,
     ),
     components(
         schemas(
@@ -94,6 +101,16 @@ use crate::dto::{
             CreateAnalyticsRequest,
             UpdateAnalyticsRequest,
 
+            // Alphabet DTOs (read-only)
+            PnarCharacter,
+            ConvertTextRequest,
+            ConvertTextResponse,
+            ConversionDirection,
+            
+            // Roles (read-only)
+            UserRole,
+            RoleInfo,
+
             // Response DTOs
             SuccessResponse,
             AuthResponse,
@@ -120,7 +137,9 @@ use crate::dto::{
         (name = "dictionary", description = "Dictionary management endpoints"),
         (name = "translations", description = "Translation request endpoints"),
         (name = "contributions", description = "User contribution endpoints"),
-        (name = "analytics", description = "Word usage analytics endpoints")
+        (name = "analytics", description = "Word usage analytics endpoints"),
+        (name = "alphabets", description = "Pnar alphabet character mappings"),
+        (name = "roles", description = "User role information and permissions")
     ),
     info(
         title = "Pnar World Dictionary API",

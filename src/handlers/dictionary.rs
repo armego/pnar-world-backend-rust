@@ -6,7 +6,7 @@ use crate::{
         responses::ApiResponse,
     },
     error::AppError,
-    middleware::auth::AuthenticatedUser,
+    middleware::auth::{AuthenticatedUser, TranslatorUser, ModeratorUser},
     services::dictionary_service,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
@@ -33,6 +33,7 @@ pub struct PaginationQuery {
         (status = 201, description = "Dictionary entry created successfully", body = DictionaryEntryResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Translator role required"),
         (status = 409, description = "Dictionary entry already exists"),
         (status = 422, description = "Validation error")
     )
@@ -40,12 +41,12 @@ pub struct PaginationQuery {
 #[post("")]
 pub async fn create_entry(
     pool: web::Data<PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Require translator role or higher
     request: web::Json<CreateDictionaryEntryRequest>,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
 
-    let entry = dictionary_service::create_entry(&pool, user.user_id, request.into_inner()).await?;
+    let entry = dictionary_service::create_entry(&pool, user.0.user_id, request.into_inner()).await?;
 
     Ok(HttpResponse::Created().json(ApiResponse::new(entry)))
 }
@@ -69,10 +70,26 @@ pub async fn create_entry(
 pub async fn get_entry(
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
+    req: actix_web::HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     let entry_id = path.into_inner();
-    let entry = dictionary_service::get_entry(&pool, entry_id).await?;
+    
+    // Extract analytics data from request
+    let session_id = None; // Could be extracted from headers/cookies
+    let ip_address = req.peer_addr().map(|addr| addr.ip().to_string());
+    let user_agent = req.headers().get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+    
+    let entry = dictionary_service::get_entry(
+        &pool, 
+        entry_id, 
+        Some(user.user_id),
+        session_id,
+        ip_address,
+        user_agent,
+    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entry)))
 }
@@ -125,11 +142,26 @@ pub async fn list_entries(
 pub async fn search_entries(
     pool: web::Data<PgPool>,
     request: web::Json<SearchDictionaryRequest>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
+    req: actix_web::HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
 
-    let entries = dictionary_service::search_entries(&pool, request.into_inner()).await?;
+    // Extract analytics data from request
+    let session_id = None; // Could be extracted from headers/cookies
+    let ip_address = req.peer_addr().map(|addr| addr.ip().to_string());
+    let user_agent = req.headers().get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+
+    let entries = dictionary_service::search_entries(
+        &pool, 
+        request.into_inner(),
+        Some(user.user_id),
+        session_id,
+        ip_address,
+        user_agent,
+    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entries)))
 }
@@ -156,7 +188,7 @@ pub async fn search_entries(
 #[put("/{id}")]
 pub async fn update_entry(
     pool: web::Data<PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Require translator role or higher
     path: web::Path<Uuid>,
     request: web::Json<UpdateDictionaryEntryRequest>,
 ) -> Result<HttpResponse, AppError> {
@@ -164,7 +196,7 @@ pub async fn update_entry(
 
     let entry_id = path.into_inner();
     let entry =
-        dictionary_service::update_entry(&pool, entry_id, user.user_id, request.into_inner())
+        dictionary_service::update_entry(&pool, entry_id, user.0.user_id, request.into_inner())
             .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entry)))
@@ -189,11 +221,11 @@ pub async fn update_entry(
 #[delete("/{id}")]
 pub async fn delete_entry(
     pool: web::Data<PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Require translator role or higher
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let entry_id = path.into_inner();
-    dictionary_service::delete_entry(&pool, entry_id, user.user_id).await?;
+    dictionary_service::delete_entry(&pool, entry_id, user.0.user_id).await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
@@ -217,11 +249,11 @@ pub async fn delete_entry(
 #[put("/{id}/verify")]
 pub async fn verify_entry(
     pool: web::Data<PgPool>,
-    user: AuthenticatedUser,
+    user: ModeratorUser, // Require moderator role or higher
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let entry_id = path.into_inner();
-    let entry = dictionary_service::verify_entry(&pool, entry_id, user.user_id).await?;
+    let entry = dictionary_service::verify_entry(&pool, entry_id, user.0.user_id).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entry)))
 }

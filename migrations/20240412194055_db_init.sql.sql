@@ -21,7 +21,7 @@ COMMENT ON COLUMN user_role.created_at IS 'The date the role was created';
 
 -- Insert the basic role: USER
 INSERT INTO user_role (role_id)
-VALUES ('admin'), ('moderator'), ('translator'), ('contributor'), ('user')
+VALUES ('superadmin'), ('admin'), ('moderator'), ('translator'), ('contributor'), ('user')
 ON CONFLICT (role_id) DO NOTHING;
 
 ------------------
@@ -56,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_users_translation_points ON users(translation_poi
 CREATE TABLE IF NOT EXISTS pnar_dictionary (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pnar_word VARCHAR(255) NOT NULL UNIQUE,
+    pnar_word_kbf VARCHAR(255), -- Keyboard friendly version of pnar_word
     english_word VARCHAR(255) NOT NULL,
     part_of_speech VARCHAR(50),
     definition TEXT,
@@ -70,10 +71,19 @@ CREATE TABLE IF NOT EXISTS pnar_dictionary (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     verified BOOLEAN NOT NULL DEFAULT false,
     verified_by UUID REFERENCES users(id),
     verified_at TIMESTAMPTZ
 );
+
+-- Add comment to explain the column
+COMMENT ON COLUMN pnar_dictionary.updated_by IS 'User who last updated this dictionary entry';
+COMMENT ON COLUMN pnar_dictionary.pnar_word_kbf IS 'Keyboard friendly version of pnar_word for easier typing and searching';
+
+-- Add index for performance on updated_by queries
+CREATE INDEX IF NOT EXISTS idx_pnar_dictionary_updated_by ON pnar_dictionary(updated_by);
+CREATE INDEX IF NOT EXISTS idx_pnar_dictionary_pnar_word_kbf ON pnar_dictionary(pnar_word_kbf);
 
 -- Create translation requests table
 CREATE TABLE IF NOT EXISTS translation_requests (
@@ -181,24 +191,77 @@ CREATE TRIGGER update_translation_requests_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert some sample data for the dictionary
-INSERT INTO pnar_dictionary (id, pnar_word, english_word, part_of_speech, definition, example_pnar, example_english, difficulty_level, usage_frequency, verified)
+INSERT INTO pnar_dictionary (id, pnar_word, pnar_word_kbf, english_word, part_of_speech, definition, example_pnar, example_english, difficulty_level, usage_frequency, verified)
 VALUES 
-    (gen_random_uuid(), 'ka', 'I/me', 'pronoun', 'First person singular pronoun', 'Ka phi Shillong', 'I go to Shillong', 1, 100, true),
-    (gen_random_uuid(), 'phi', 'go', 'verb', 'To move from one place to another', 'Ka phi bazar', 'I go to market', 1, 95, true),
-    (gen_random_uuid(), 'jong', 'house', 'noun', 'A building for human habitation', 'Jong ka ki ka', 'This is my house', 1, 90, true),
-    (gen_random_uuid(), 'kaba', 'what', 'interrogative', 'Used to ask for information', 'Kaba ka ym ki?', 'What are you doing?', 1, 85, true),
-    (gen_random_uuid(), 'kumno', 'how', 'interrogative', 'In what way or manner', 'Kumno ka phi?', 'How do I go?', 1, 80, true)
+    (gen_random_uuid(), 'ka', 'ka', 'I/me', 'pronoun', 'First person singular pronoun', 'Ka phi Shillong', 'I go to Shillong', 1, 100, true),
+    (gen_random_uuid(), 'phi', 'phi', 'go', 'verb', 'To move from one place to another', 'Ka phi bazar', 'I go to market', 1, 95, true),
+    (gen_random_uuid(), 'jong', 'jong', 'house', 'noun', 'A building for human habitation', 'Jong ka ki ka', 'This is my house', 1, 90, true),
+    (gen_random_uuid(), 'kaba', 'kaba', 'what', 'interrogative', 'Used to ask for information', 'Kaba ka ym ki?', 'What are you doing?', 1, 85, true),
+    (gen_random_uuid(), 'kumno', 'kumno', 'how', 'interrogative', 'In what way or manner', 'Kumno ka phi?', 'How do I go?', 1, 80, true)
 ON CONFLICT (pnar_word) DO NOTHING;
 
 -- Insert dummy users for testing
 -- Password for all test users is: password123
 -- Hash generated with bcrypt cost 12: $2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW
--- INSERT INTO users (id, email, password, full_name, is_active, is_email_verified) VALUES
--- (gen_random_uuid(), 'admin@example.com', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'System Administrator', true, true),
--- (gen_random_uuid(), 'john.doe@example.com', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'John Doe', true, true),
--- (gen_random_uuid(), 'jane.smith@example.com', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Jane Smith', true, true),
--- (gen_random_uuid(), 'bob.wilson@example.com', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Bob Wilson', true, false),
--- (gen_random_uuid(), 'alice.brown@example.com', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Alice Brown', false, false)
--- ON CONFLICT (email) DO NOTHING;
+INSERT INTO users (id, email, password, full_name, role, is_active, is_email_verified) VALUES
+(gen_random_uuid(), 'superadmin@pnar.online', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'System Administrator', 'superadmin', true, true),
+(gen_random_uuid(), 'admine@pnar.online', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Admin', 'admin', true, true),
+(gen_random_uuid(), 'translator@pnar.online', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Translator', 'translator', true, true),
+(gen_random_uuid(), 'user@pnar.online', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'User', 'user', true, false),
+(gen_random_uuid(), 'alice.brown@pnar.online', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW', 'Alice Brown', 'user', false, false)
+ON CONFLICT (email) DO NOTHING;
 
 
+-- Create pnar_alphabets table to store alphabet mappings
+-- This table maps traditional Pnar characters to keyboard-friendly alternatives
+
+CREATE TABLE IF NOT EXISTS pnar_alphabets (
+    small VARCHAR(10) NOT NULL UNIQUE,
+    capital VARCHAR(10) NOT NULL,
+    kbf_small VARCHAR(10) NOT NULL,
+    kbf_capital VARCHAR(10) NOT NULL,
+    sort_order INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add comments
+COMMENT ON TABLE pnar_alphabets IS 'Pnar alphabet characters with keyboard-friendly mappings';
+COMMENT ON COLUMN pnar_alphabets.small IS 'Lowercase Pnar character';
+COMMENT ON COLUMN pnar_alphabets.capital IS 'Uppercase Pnar character';
+COMMENT ON COLUMN pnar_alphabets.kbf_small IS 'Keyboard-friendly lowercase equivalent';
+COMMENT ON COLUMN pnar_alphabets.kbf_capital IS 'Keyboard-friendly uppercase equivalent';
+COMMENT ON COLUMN pnar_alphabets.sort_order IS 'Order in the Pnar alphabet';
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_pnar_alphabets_small ON pnar_alphabets(small);
+CREATE INDEX IF NOT EXISTS idx_pnar_alphabets_kbf_small ON pnar_alphabets(kbf_small);
+CREATE INDEX IF NOT EXISTS idx_pnar_alphabets_sort_order ON pnar_alphabets(sort_order);
+
+-- Insert the Pnar alphabet data
+INSERT INTO pnar_alphabets (small, capital, kbf_small, kbf_capital, sort_order) VALUES
+('a', 'A', 'a', 'A', 1),
+('b', 'B', 'b', 'B', 2),
+('c', 'C', 'c', 'C', 3),
+('d', 'D', 'd', 'D', 4),
+('e', 'E', 'e', 'E', 5),
+('æ', 'Æ', 'ae', 'Ae', 6),
+('h', 'H', 'h', 'H', 7),
+('i', 'I', 'i', 'I', 8),
+('y', 'Y', 'y', 'Y', 9),
+('j', 'J', 'j', 'J', 10),
+('k', 'K', 'k', 'K', 11),
+('l', 'L', 'l', 'L', 12),
+('m', 'M', 'm', 'M', 13),
+('n', 'N', 'n', 'N', 14),
+('ñ', 'Ñ', 'nh', 'Nh', 15),
+('ŋ', 'Ŋ', 'ng', 'Ng', 16),
+('o', 'O', 'o', 'O', 17),
+('õ', 'Õ', 'oo', 'OO', 18),
+('p', 'P', 'p', 'P', 19),
+('r', 'R', 'r', 'R', 20),
+('s', 'S', 's', 'S', 21),
+('t', 'T', 't', 'T', 22),
+('u', 'U', 'u', 'U', 23),
+('ũ', 'Ũ', 'uu', 'UU', 24),
+('w', 'W', 'w', 'W', 25)
+ON CONFLICT (small) DO NOTHING;

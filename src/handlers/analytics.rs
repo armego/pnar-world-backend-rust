@@ -140,7 +140,7 @@ pub async fn list_analytics(
         pool.get_ref(),
         user_id,
         query.word_id,
-        query.event_type.clone(),
+        query.event_type.as_deref(),
         page,
         per_page,
     )

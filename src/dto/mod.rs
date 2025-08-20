@@ -1,3 +1,4 @@
+pub mod alphabet;
 pub mod analytics;
 pub mod auth;
 pub mod contribution;
@@ -7,6 +8,7 @@ pub mod responses;
 pub mod translation;
 pub mod user;
 
+pub use alphabet::*;
 pub use analytics::*;
 pub use auth::*;
 pub use contribution::*;

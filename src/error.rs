@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, ResponseError};
 use serde_json::json;
+use crate::constants::error_messages;
 
 /// Application-wide error types
 #[derive(thiserror::Error, Debug)]
@@ -8,28 +9,28 @@ pub enum AppError {
     Database(#[from] sqlx::Error),
 
     #[error("Authentication error: {0}")]
-    Authentication(String),
+    Authentication(&'static str),
 
     #[error("Authorization error: {0}")]
-    Authorization(String),
+    Authorization(&'static str),
 
     #[error("Unauthorized: {0}")]
-    Unauthorized(String),
+    Unauthorized(&'static str),
 
     #[error("Forbidden: {0}")]
-    Forbidden(String),
+    Forbidden(&'static str),
 
     #[error("Validation error: {0}")]
-    Validation(String),
+    Validation(String), // Keep String for complex validation messages
 
     #[error("Not found: {0}")]
-    NotFound(String),
+    NotFound(&'static str),
 
     #[error("Conflict: {0}")]
-    Conflict(String),
+    Conflict(&'static str),
 
     #[error("Internal server error: {0}")]
-    Internal(String),
+    Internal(String), // Keep String for complex internal errors
 
     #[error("Configuration error: {0}")]
     Config(#[from] config::ConfigError),
@@ -38,7 +39,7 @@ pub enum AppError {
     Jwt(#[from] jsonwebtoken::errors::Error),
 
     #[error("Password hashing error: {0}")]
-    PasswordHash(String),
+    PasswordHash(String), // Keep String for complex error details
 }
 
 impl ResponseError for AppError {
@@ -82,17 +83,17 @@ impl ResponseError for AppError {
             AppError::Database(_) | AppError::Internal(_) | AppError::Config(_) => (
                 actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
-                "An internal error occurred".to_string(),
+                error_messages::INTERNAL_SERVER_ERROR.to_string(),
             ),
             AppError::Jwt(_) => (
                 actix_web::http::StatusCode::UNAUTHORIZED,
                 "TOKEN_ERROR",
-                "Invalid or expired token".to_string(),
+                error_messages::INVALID_TOKEN.to_string(),
             ),
             AppError::PasswordHash(_) => (
                 actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "PASSWORD_ERROR",
-                "Password processing error".to_string(),
+                error_messages::PASSWORD_PROCESSING_ERROR.to_string(),
             ),
         };
 

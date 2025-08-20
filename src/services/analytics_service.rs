@@ -1,4 +1,5 @@
 use crate::{
+    constants::error_messages,
     dto::{responses::AnalyticsResponse, CreateAnalyticsRequest, UpdateAnalyticsRequest},
     error::AppError,
 };
@@ -36,6 +37,7 @@ pub async fn create_analytics_record(
     Ok(AnalyticsResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For create, we don't join with users table
         word_id: record.get("word_id"),
         event_type: record.get("event_type"),
         timestamp: record.get("timestamp"),
@@ -63,11 +65,12 @@ pub async fn get_analytics_record(
     .await?;
 
     let record =
-        record.ok_or_else(|| AppError::NotFound("Analytics record not found".to_string()))?;
+        record.ok_or_else(|| AppError::NotFound(error_messages::ANALYTICS_NOT_FOUND))?;
 
     Ok(AnalyticsResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For single record, we don't join with users table
         word_id: record.get("word_id"),
         event_type: record.get("event_type"),
         timestamp: record.get("timestamp"),
@@ -82,7 +85,7 @@ pub async fn list_analytics_records(
     pool: &PgPool,
     user_id: Option<Uuid>,
     word_id: Option<Uuid>,
-    event_type: Option<String>,
+    event_type: Option<&str>,
     page: i64,
     per_page: i64,
 ) -> Result<Vec<AnalyticsResponse>, AppError> {
@@ -236,6 +239,7 @@ pub async fn list_analytics_records(
         .map(|record| AnalyticsResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
+            user_email: None, // For list, we don't join with users table by default
             word_id: record.get("word_id"),
             event_type: record.get("event_type"),
             timestamp: record.get("timestamp"),
@@ -269,11 +273,12 @@ pub async fn update_analytics_record(
     .await?;
 
     let record =
-        record.ok_or_else(|| AppError::NotFound("Analytics record not found".to_string()))?;
+        record.ok_or_else(|| AppError::NotFound(error_messages::ANALYTICS_NOT_FOUND))?;
 
     Ok(AnalyticsResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For update, we don't join with users table
         word_id: record.get("word_id"),
         event_type: record.get("event_type"),
         timestamp: record.get("timestamp"),
@@ -291,7 +296,7 @@ pub async fn delete_analytics_record(pool: &PgPool, analytics_id: Uuid) -> Resul
         .await?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound("Analytics record not found".to_string()));
+        return Err(AppError::NotFound(error_messages::ANALYTICS_NOT_FOUND));
     }
 
     Ok(())

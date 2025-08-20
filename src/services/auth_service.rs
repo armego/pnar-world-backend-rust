@@ -1,4 +1,5 @@
 use crate::{
+    constants::error_messages,
     dto::{
         responses::{AuthResponse, UserResponse},
         LoginRequest, RegisterRequest,
@@ -22,7 +23,7 @@ pub async fn register_user(
         .await?;
 
     if existing_user.is_some() {
-        return Err(AppError::Conflict("User already exists".to_string()));
+        return Err(AppError::Conflict(error_messages::USER_ALREADY_EXISTS));
     }
 
     // Hash password
@@ -30,7 +31,7 @@ pub async fn register_user(
     let argon2 = Argon2::default();
     let password_hash = argon2
         .hash_password(request.password.as_bytes(), &salt)
-        .map_err(|e| AppError::Internal(format!("Failed to hash password: {}", e)))?
+        .map_err(|_| AppError::Internal(error_messages::PASSWORD_HASH_FAILED.to_string()))?
         .to_string();
 
     // Create user
@@ -96,17 +97,17 @@ pub async fn login_user(pool: &PgPool, request: LoginRequest) -> Result<AuthResp
         .await?;
 
     let user_record =
-        user_record.ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
+        user_record.ok_or_else(|| AppError::Unauthorized(error_messages::INVALID_CREDENTIALS))?;
 
     // Verify password
     let password: String = user_record.get("password");
     let parsed_hash = PasswordHash::new(&password)
-        .map_err(|e| AppError::Internal(format!("Failed to parse password hash: {}", e)))?;
+        .map_err(|_| AppError::Internal(error_messages::PASSWORD_PROCESSING_ERROR.to_string()))?;
 
     let argon2 = Argon2::default();
     argon2
         .verify_password(request.password.as_bytes(), &parsed_hash)
-        .map_err(|_| AppError::Unauthorized("Invalid credentials".to_string()))?;
+        .map_err(|_| AppError::Unauthorized(error_messages::INVALID_CREDENTIALS))?;
 
     let user_id: Uuid = user_record.get("id");
 
@@ -166,7 +167,7 @@ pub async fn get_user_profile(pool: &PgPool, user_id: Uuid) -> Result<UserRespon
     .await?;
 
     let user_record =
-        user_record.ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+        user_record.ok_or_else(|| AppError::NotFound(error_messages::USER_NOT_FOUND))?;
 
     Ok(UserResponse {
         id: user_record.get("id"),

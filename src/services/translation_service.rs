@@ -1,9 +1,16 @@
 use crate::{
+    constants::{defaults, error_messages, roles},
     dto::{responses::TranslationResponse, CreateTranslationRequest, UpdateTranslationRequest},
     error::AppError,
+    utils::database,
 };
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
+
+// Helper function to get user email
+async fn get_user_email(pool: &PgPool, user_id: Uuid) -> Result<String, AppError> {
+    database::get_user_email(pool, user_id).await
+}
 
 pub async fn create_translation_request(
     pool: &PgPool,
@@ -27,16 +34,18 @@ pub async fn create_translation_request(
     .bind(request_id)
     .bind(user_id)
     .bind(&request.source_text)
-    .bind(request.source_language.unwrap_or_else(|| "en".to_string()))
+    .bind(request.source_language.as_deref().unwrap_or(defaults::DEFAULT_SOURCE_LANGUAGE))
     .bind(
         request
             .target_language
-            .unwrap_or_else(|| "pnar".to_string()),
+            .as_deref()
+            .unwrap_or(defaults::DEFAULT_TARGET_LANGUAGE),
     )
     .bind(
         request
             .translation_type
-            .unwrap_or_else(|| "automatic".to_string()),
+            .as_deref()
+            .unwrap_or(defaults::DEFAULT_TRANSLATION_TYPE),
     )
     .bind(&request.metadata.unwrap_or_else(|| serde_json::json!({})))
     .fetch_one(pool)
@@ -45,7 +54,7 @@ pub async fn create_translation_request(
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
-        created_by_email: None, // For create, we don't join with users table
+        user_email: None, // For create, we don't join with users table
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -55,6 +64,7 @@ pub async fn create_translation_request(
         confidence_score: record.get("confidence_score"),
         reviewed: record.get("reviewed"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: None, // Will be populated when querying with joins
         reviewed_at: record.get("reviewed_at"),
         metadata: record.get("metadata"),
         created_at: record.get("created_at"),
@@ -66,30 +76,58 @@ pub async fn get_translation_request(
     pool: &PgPool,
     request_id: Uuid,
     user_id: Uuid,
+    user_role: &str,
 ) -> Result<TranslationResponse, AppError> {
-    let record = sqlx::query(
-        r#"
-        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-               u.email as created_by_email
-        FROM translation_requests tr
-        LEFT JOIN users u ON tr.user_id = u.id
-        WHERE tr.id = $1 AND tr.user_id = $2
-        "#,
-    )
-    .bind(request_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await?;
+    // Build query based on user role
+    let (query, use_user_filter) = match user_role {
+        roles::SUPERADMIN | roles::ADMIN => {
+            // Admins and superadmins can access any translation
+            (r#"
+            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+                   u.email as user_email, reviewer.email as reviewed_by_email
+            FROM translation_requests tr
+            LEFT JOIN users u ON tr.user_id = u.id
+            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+            WHERE tr.id = $1
+            "#, false)
+        },
+        _ => {
+            // Regular users can only access their own translations
+            (r#"
+            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+                   u.email as user_email, reviewer.email as reviewed_by_email
+            FROM translation_requests tr
+            LEFT JOIN users u ON tr.user_id = u.id
+            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+            WHERE tr.id = $1 AND tr.user_id = $2
+            "#, true)
+        }
+    };
+
+    let record = if use_user_filter {
+        sqlx::query(query)
+            .bind(request_id)
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?
+    } else {
+        sqlx::query(query)
+            .bind(request_id)
+            .fetch_optional(pool)
+            .await?
+    };
 
     let record =
-        record.ok_or_else(|| AppError::NotFound("Translation request not found".to_string()))?;
+        record.ok_or_else(|| AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND))?;
 
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
-        created_by_email: record.get("created_by_email"),
+        user_email: record.get("user_email"),
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -99,6 +137,7 @@ pub async fn get_translation_request(
         confidence_score: record.get("confidence_score"),
         reviewed: record.get("reviewed"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: record.get("reviewed_by_email"),
         reviewed_at: record.get("reviewed_at"),
         metadata: record.get("metadata"),
         created_at: record.get("created_at"),
@@ -109,36 +148,66 @@ pub async fn get_translation_request(
 pub async fn list_translation_requests(
     pool: &PgPool,
     user_id: Uuid,
+    user_role: &str,
     page: i64,
     per_page: i64,
 ) -> Result<Vec<TranslationResponse>, AppError> {
     let offset = (page - 1) * per_page;
 
-    let records = sqlx::query(
-        r#"
-        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-               u.email as created_by_email
-        FROM translation_requests tr
-        LEFT JOIN users u ON tr.user_id = u.id
-        WHERE tr.user_id = $1
-        ORDER BY tr.created_at DESC
-        LIMIT $2 OFFSET $3
-        "#,
-    )
-    .bind(user_id)
-    .bind(per_page)
-    .bind(offset)
-    .fetch_all(pool)
-    .await?;
+    // Build query based on user role
+    let (query, use_user_filter) = match user_role {
+        roles::SUPERADMIN | roles::ADMIN => {
+            // Admins and superadmins can see all translations
+            (r#"
+            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+                   u.email as user_email, reviewer.email as reviewed_by_email
+            FROM translation_requests tr
+            LEFT JOIN users u ON tr.user_id = u.id
+            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+            ORDER BY tr.created_at DESC
+            LIMIT $1 OFFSET $2
+            "#, false)
+        },
+        _ => {
+            // Regular users can only see their own translations
+            (r#"
+            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+                   u.email as user_email, reviewer.email as reviewed_by_email
+            FROM translation_requests tr
+            LEFT JOIN users u ON tr.user_id = u.id
+            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+            WHERE tr.user_id = $1
+            ORDER BY tr.created_at DESC
+            LIMIT $2 OFFSET $3
+            "#, true)
+        }
+    };
+
+    let records = if use_user_filter {
+        sqlx::query(query)
+            .bind(user_id)
+            .bind(per_page)
+            .bind(offset)
+            .fetch_all(pool)
+            .await?
+    } else {
+        sqlx::query(query)
+            .bind(per_page)
+            .bind(offset)
+            .fetch_all(pool)
+            .await?
+    };
 
     Ok(records
         .into_iter()
         .map(|record| TranslationResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
-            created_by_email: record.get("created_by_email"),
+            user_email: record.get("user_email"),
             source_text: record.get("source_text"),
             source_language: record.get("source_language"),
             target_language: record.get("target_language"),
@@ -148,6 +217,7 @@ pub async fn list_translation_requests(
             confidence_score: record.get("confidence_score"),
             reviewed: record.get("reviewed"),
             reviewed_by: record.get("reviewed_by"),
+            reviewed_by_email: record.get("reviewed_by_email"),
             reviewed_at: record.get("reviewed_at"),
             metadata: record.get("metadata"),
             created_at: record.get("created_at"),
@@ -160,29 +230,18 @@ pub async fn update_translation_request(
     pool: &PgPool,
     request_id: Uuid,
     user_id: Uuid,
-    user_role: &str,
     request: UpdateTranslationRequest,
 ) -> Result<TranslationResponse, AppError> {
-    // First, check if user can update this translation (owner or admin)
-    let can_update = if user_role == "admin" {
-        // Admin can update any translation
-        sqlx::query("SELECT id FROM translation_requests WHERE id = $1")
-            .bind(request_id)
-            .fetch_optional(pool)
-            .await?
-            .is_some()
-    } else {
-        // Regular user can only update their own translations
-        sqlx::query("SELECT id FROM translation_requests WHERE id = $1 AND user_id = $2")
-            .bind(request_id)
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await?
-            .is_some()
-    };
+    // Check if user can update this translation (owner only for regular users)
+    let can_update = sqlx::query("SELECT id FROM translation_requests WHERE id = $1 AND user_id = $2")
+        .bind(request_id)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?
+        .is_some();
 
     if !can_update {
-        return Err(AppError::NotFound("Translation request not found".to_string()));
+        return Err(AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND));
     }
 
     // Update the translation
@@ -214,9 +273,10 @@ pub async fn update_translation_request(
         SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
                tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
                tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-               u.email as created_by_email
+               u.email as user_email, reviewer.email as reviewed_by_email
         FROM translation_requests tr
         LEFT JOIN users u ON tr.user_id = u.id
+        LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
         WHERE tr.id = $1
         "#,
     )
@@ -227,7 +287,7 @@ pub async fn update_translation_request(
     Ok(TranslationResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
-        created_by_email: record.get("created_by_email"),
+        user_email: record.get("user_email"),
         source_text: record.get("source_text"),
         source_language: record.get("source_language"),
         target_language: record.get("target_language"),
@@ -237,6 +297,7 @@ pub async fn update_translation_request(
         confidence_score: record.get("confidence_score"),
         reviewed: record.get("reviewed"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: record.get("reviewed_by_email"),
         reviewed_at: record.get("reviewed_at"),
         metadata: record.get("metadata"),
         created_at: record.get("created_at"),
@@ -248,27 +309,92 @@ pub async fn delete_translation_request(
     pool: &PgPool,
     request_id: Uuid,
     user_id: Uuid,
-    user_role: &str,
 ) -> Result<(), AppError> {
-    // Check if user can delete this translation (owner or admin)
-    let (query_str, bind_user_id) = if user_role == "admin" {
-        ("DELETE FROM translation_requests WHERE id = $1", false)
-    } else {
-        ("DELETE FROM translation_requests WHERE id = $1 AND user_id = $2", true)
-    };
+    // Check if user can delete this translation (owner only for regular users)
+    let rows_affected = sqlx::query("DELETE FROM translation_requests WHERE id = $1 AND user_id = $2")
+        .bind(request_id)
+        .bind(user_id)
+        .execute(pool)
+        .await?
+        .rows_affected();
 
-    let mut query = sqlx::query(query_str).bind(request_id);
-    
-    if bind_user_id {
-        query = query.bind(user_id);
+    if rows_affected == 0 {
+        return Err(AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND));
     }
-    
-    let result = query.execute(pool).await?;
 
-    if result.rows_affected() == 0 {
-        return Err(AppError::NotFound(
-            "Translation request not found".to_string(),
-        ));
+    Ok(())
+}
+
+// Admin-only function to update any translation
+pub async fn admin_update_translation_request(
+    pool: &PgPool,
+    request_id: Uuid,
+    request: UpdateTranslationRequest,
+) -> Result<TranslationResponse, AppError> {
+    let query = r#"
+        UPDATE translation_requests 
+        SET translated_text = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING id, source_text, translated_text, source_language, target_language, 
+                  status, user_id, created_at, updated_at, translation_type, 
+                  confidence_score, reviewed, reviewed_by, reviewed_at, metadata
+    "#;
+    
+    let result = sqlx::query(query)
+        .bind(&request.translated_text)
+        .bind(request_id)
+        .fetch_optional(pool)
+        .await?;
+
+    match result {
+        Some(row) => {
+            // Get user email
+            let user_email = get_user_email(pool, row.get("user_id")).await?;
+            
+            // Get reviewer email if reviewed_by exists
+            let reviewed_by_email = if let Some(reviewer_id) = row.try_get::<Option<Uuid>, _>("reviewed_by")? {
+                Some(get_user_email(pool, reviewer_id).await?)
+            } else {
+                None
+            };
+
+            Ok(TranslationResponse {
+                id: row.get("id"),
+                source_text: row.get("source_text"),
+                translated_text: row.get("translated_text"),
+                source_language: row.get("source_language"),
+                target_language: row.get("target_language"),
+                status: row.get("status"),
+                user_id: row.get("user_id"),
+                user_email: Some(user_email),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                translation_type: row.get("translation_type"),
+                confidence_score: row.get("confidence_score"),
+                reviewed: row.get("reviewed"),
+                reviewed_by: row.try_get("reviewed_by")?,
+                reviewed_by_email,
+                reviewed_at: row.try_get("reviewed_at")?,
+                metadata: row.try_get("metadata")?,
+            })
+        },
+        None => Err(AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND)),
+    }
+}
+
+// Admin-only function to delete any translation
+pub async fn admin_delete_translation_request(
+    pool: &PgPool,
+    request_id: Uuid,
+) -> Result<(), AppError> {
+    let rows_affected = sqlx::query("DELETE FROM translation_requests WHERE id = $1")
+        .bind(request_id)
+        .execute(pool)
+        .await?
+        .rows_affected();
+
+    if rows_affected == 0 {
+        return Err(AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND));
     }
 
     Ok(())

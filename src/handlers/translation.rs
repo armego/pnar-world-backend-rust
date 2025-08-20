@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     dto::{CreateTranslationRequest, UpdateTranslationRequest},
     error::AppError,
-    middleware::auth::AuthenticatedUser,
+    middleware::auth::{AuthenticatedUser, AdminUser, TranslatorUser},
     services::translation_service,
 };
 
@@ -26,6 +26,7 @@ pub struct TranslationQueryParams {
         (status = 201, description = "Translation request created successfully", body = TranslationResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Translator role required"),
         (status = 500, description = "Internal server error")
     ),
     security(
@@ -34,12 +35,12 @@ pub struct TranslationQueryParams {
 )]
 pub async fn create_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Require translator role or higher
     req: web::Json<CreateTranslationRequest>,
 ) -> Result<HttpResponse, AppError> {
     let translation = translation_service::create_translation_request(
         pool.get_ref(),
-        user.user_id,
+        user.0.user_id,
         req.into_inner(),
     )
     .await?;
@@ -74,6 +75,7 @@ pub async fn get_translation(
         pool.get_ref(),
         path.into_inner(),
         user.user_id,
+        &user.role,
     )
     .await?;
 
@@ -106,6 +108,7 @@ pub async fn list_translations(
     let translations = translation_service::list_translation_requests(
         pool.get_ref(),
         user.user_id,
+        &user.role,
         page,
         per_page,
     )
@@ -135,15 +138,14 @@ pub async fn list_translations(
 )]
 pub async fn update_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Only translators can update their own translations
     path: web::Path<Uuid>,
     req: web::Json<UpdateTranslationRequest>,
 ) -> Result<HttpResponse, AppError> {
     let translation = translation_service::update_translation_request(
         pool.get_ref(),
         path.into_inner(),
-        user.user_id,
-        &user.role,
+        user.0.user_id,
         req.into_inner(),
     )
     .await?;
@@ -171,14 +173,82 @@ pub async fn update_translation(
 )]
 pub async fn delete_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
+    user: TranslatorUser, // Only translators can delete their own translations
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     translation_service::delete_translation_request(
         pool.get_ref(),
         path.into_inner(),
-        user.user_id,
-        &user.role,
+        user.0.user_id,
+    )
+    .await?;
+
+    Ok(HttpResponse::NoContent().finish())
+}
+
+/// Admin: Update any translation request
+#[utoipa::path(
+    put,
+    path = "/api/v1/admin/translations/{id}",
+    tag = "translations",
+    params(
+        ("id" = Uuid, Path, description = "Translation request ID")
+    ),
+    request_body = UpdateTranslationRequest,
+    responses(
+        (status = 200, description = "Translation request updated successfully", body = TranslationResponse),
+        (status = 404, description = "Translation request not found"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin role required"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn admin_update_translation(
+    pool: web::Data<sqlx::PgPool>,
+    _user: AdminUser, // Require admin role or higher
+    path: web::Path<Uuid>,
+    req: web::Json<UpdateTranslationRequest>,
+) -> Result<HttpResponse, AppError> {
+    let translation = translation_service::admin_update_translation_request(
+        pool.get_ref(),
+        path.into_inner(),
+        req.into_inner(),
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok().json(translation))
+}
+
+/// Admin: Delete any translation request
+#[utoipa::path(
+    delete,
+    path = "/api/v1/admin/translations/{id}",
+    tag = "translations",
+    params(
+        ("id" = Uuid, Path, description = "Translation request ID")
+    ),
+    responses(
+        (status = 204, description = "Translation request deleted successfully"),
+        (status = 404, description = "Translation request not found"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin role required"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn admin_delete_translation(
+    pool: web::Data<sqlx::PgPool>,
+    _user: AdminUser, // Require admin role or higher
+    path: web::Path<Uuid>,
+) -> Result<HttpResponse, AppError> {
+    translation_service::admin_delete_translation_request(
+        pool.get_ref(),
+        path.into_inner(),
     )
     .await?;
 

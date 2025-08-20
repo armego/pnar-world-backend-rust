@@ -50,10 +50,10 @@ fn run(
     settings: Settings,
 ) -> AppResult<actix_web::dev::Server> {
     let db_pool = web::Data::new(db_pool);
-    let settings_data = web::Data::new(settings.clone());
+    let settings_data = web::Data::new(settings);
 
     let server = HttpServer::new(move || {
-        let _cors = configure_cors(&settings.application.cors);
+        let _cors = configure_cors(&settings_data.application.cors);
         let openapi = ApiDoc::openapi();
 
         App::new()
@@ -64,7 +64,7 @@ fn run(
             .wrap(Logger::default())
             .wrap(NormalizePath::trim())
             .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi),
             )
             .route(
                 "/docs",
@@ -194,6 +194,15 @@ fn run(
                                         web::get().to(handlers::analytics::get_word_stats),
                                     ),
                             ),
+                    )
+                    .service(
+                        web::scope("/alphabets")
+                            .route("", web::get().to(handlers::alphabet::list_alphabets))
+                            .route("/convert", web::post().to(handlers::alphabet::convert_text)),
+                    )
+                    .service(
+                        web::scope("/roles")
+                            .route("", web::get().to(handlers::roles::list_roles)),
                     ),
             )
     })

@@ -1,4 +1,5 @@
 use crate::{
+    constants::error_messages,
     dto::{responses::ContributionResponse, CreateContributionRequest, UpdateContributionRequest},
     error::AppError,
 };
@@ -40,6 +41,7 @@ pub async fn create_contribution(
     Ok(ContributionResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For create, we don't join with users table
         contribution_type: record.get("contribution_type"),
         entity_type: record.get("entity_type"),
         entity_id: record.get("entity_id"),
@@ -49,6 +51,7 @@ pub async fn create_contribution(
         points_awarded: record.get("points_awarded"),
         status: record.get("status"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: None, // Will be populated when querying with joins
         reviewed_at: record.get("reviewed_at"),
         created_at: record.get("created_at"),
     })
@@ -73,11 +76,12 @@ pub async fn get_contribution(
     .fetch_optional(pool)
     .await?;
 
-    let record = record.ok_or_else(|| AppError::NotFound("Contribution not found".to_string()))?;
+    let record = record.ok_or_else(|| AppError::NotFound(error_messages::CONTRIBUTION_NOT_FOUND))?;
 
     Ok(ContributionResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For single record, we don't join with users table
         contribution_type: record.get("contribution_type"),
         entity_type: record.get("entity_type"),
         entity_id: record.get("entity_id"),
@@ -87,6 +91,7 @@ pub async fn get_contribution(
         points_awarded: record.get("points_awarded"),
         status: record.get("status"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: None, // Will be populated when querying with joins
         reviewed_at: record.get("reviewed_at"),
         created_at: record.get("created_at"),
     })
@@ -139,6 +144,7 @@ pub async fn list_contributions(
         .map(|record| ContributionResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
+            user_email: None, // For list, we don't join with users table by default
             contribution_type: record.get("contribution_type"),
             entity_type: record.get("entity_type"),
             entity_id: record.get("entity_id"),
@@ -148,6 +154,7 @@ pub async fn list_contributions(
             points_awarded: record.get("points_awarded"),
             status: record.get("status"),
             reviewed_by: record.get("reviewed_by"),
+            reviewed_by_email: None, // Will be populated when querying with joins
             reviewed_at: record.get("reviewed_at"),
             created_at: record.get("created_at"),
         })
@@ -177,11 +184,12 @@ pub async fn update_contribution(
     .fetch_optional(pool)
     .await?;
 
-    let record = record.ok_or_else(|| AppError::NotFound("Contribution not found".to_string()))?;
+    let record = record.ok_or_else(|| AppError::NotFound(error_messages::CONTRIBUTION_NOT_FOUND))?;
 
     Ok(ContributionResponse {
         id: record.get("id"),
         user_id: record.get("user_id"),
+        user_email: None, // For update, we don't join with users table
         contribution_type: record.get("contribution_type"),
         entity_type: record.get("entity_type"),
         entity_id: record.get("entity_id"),
@@ -191,6 +199,7 @@ pub async fn update_contribution(
         points_awarded: record.get("points_awarded"),
         status: record.get("status"),
         reviewed_by: record.get("reviewed_by"),
+        reviewed_by_email: None, // Will be populated when querying with joins
         reviewed_at: record.get("reviewed_at"),
         created_at: record.get("created_at"),
     })
@@ -208,7 +217,7 @@ pub async fn delete_contribution(
         .await?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound("Contribution not found".to_string()));
+        return Err(AppError::NotFound(error_messages::CONTRIBUTION_NOT_FOUND));
     }
 
     Ok(())

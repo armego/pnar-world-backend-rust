@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::{constants::error_messages, error::AppError};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ impl Claims {
 
     pub fn user_id(&self) -> Result<Uuid, AppError> {
         Uuid::parse_str(&self.sub)
-            .map_err(|_| AppError::Unauthorized("Invalid user ID in token".to_string()))
+            .map_err(|_| AppError::Unauthorized(error_messages::INVALID_TOKEN))
     }
 }
 
@@ -74,5 +74,5 @@ pub fn verify_token(token: &str) -> Result<Claims, AppError> {
         &Validation::default(),
     )
     .map(|data| data.claims)
-    .map_err(|e| AppError::Unauthorized(format!("Invalid token: {}", e)))
+    .map_err(|_| AppError::Unauthorized(error_messages::INVALID_TOKEN))
 }

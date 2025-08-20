@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ApiResponse<T> {
     pub data: T,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -23,6 +24,7 @@ impl<T> ApiResponse<T> {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SuccessResponse {
     pub data: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -77,6 +79,7 @@ pub struct AuthResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuthApiResponse {
     pub data: AuthResponse,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -93,6 +96,7 @@ impl AuthApiResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct UserApiResponse {
     pub data: UserResponse,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -112,6 +116,8 @@ pub struct DictionaryEntryResponse {
     pub id: Uuid,
     #[schema(example = "ka")]
     pub pnar_word: String,
+    #[schema(example = "ka")]
+    pub pnar_word_kbf: Option<String>,
     #[schema(example = "go")]
     pub english_word: String,
     #[schema(example = "verb")]
@@ -137,6 +143,15 @@ pub struct DictionaryEntryResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
+    #[schema(example = "creator@example.com")]
+    pub created_by_email: Option<String>,
+    pub updated_by: Option<Uuid>,
+    #[schema(example = "editor@example.com")]
+    pub updated_by_email: Option<String>,
+    pub verified_by: Option<Uuid>,
+    #[schema(example = "verifier@example.com")]
+    pub verified_by_email: Option<String>,
+    pub verified_at: Option<DateTime<Utc>>,
 }
 
 /// Paginated response
@@ -144,6 +159,7 @@ pub struct DictionaryEntryResponse {
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
@@ -161,7 +177,7 @@ pub struct PaginationInfo {
 
 impl<T> PaginatedResponse<T> {
     pub fn new(data: Vec<T>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
+        let pages = (total.saturating_add(per_page).saturating_sub(1)) / per_page; // Safe division
 
         Self {
             data,
@@ -181,24 +197,8 @@ impl<T> PaginatedResponse<T> {
 pub struct DictionaryPaginatedResponse {
     pub data: Vec<DictionaryEntryResponse>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
-}
-
-impl DictionaryPaginatedResponse {
-    pub fn new(data: Vec<DictionaryEntryResponse>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
-
-        Self {
-            data,
-            pagination: PaginationInfo {
-                page,
-                per_page,
-                total,
-                pages,
-            },
-            timestamp: Utc::now(),
-        }
-    }
 }
 
 /// Users paginated response
@@ -206,24 +206,8 @@ impl DictionaryPaginatedResponse {
 pub struct UserPaginatedResponse {
     pub data: Vec<UserResponse>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
-}
-
-impl UserPaginatedResponse {
-    pub fn new(data: Vec<UserResponse>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
-
-        Self {
-            data,
-            pagination: PaginationInfo {
-                page,
-                per_page,
-                total,
-                pages,
-            },
-            timestamp: Utc::now(),
-        }
-    }
 }
 
 /// Translations paginated response
@@ -231,24 +215,8 @@ impl UserPaginatedResponse {
 pub struct TranslationPaginatedResponse {
     pub data: Vec<TranslationResponse>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
-}
-
-impl TranslationPaginatedResponse {
-    pub fn new(data: Vec<TranslationResponse>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
-
-        Self {
-            data,
-            pagination: PaginationInfo {
-                page,
-                per_page,
-                total,
-                pages,
-            },
-            timestamp: Utc::now(),
-        }
-    }
 }
 
 /// Contributions paginated response
@@ -256,24 +224,8 @@ impl TranslationPaginatedResponse {
 pub struct ContributionPaginatedResponse {
     pub data: Vec<ContributionResponse>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
-}
-
-impl ContributionPaginatedResponse {
-    pub fn new(data: Vec<ContributionResponse>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
-
-        Self {
-            data,
-            pagination: PaginationInfo {
-                page,
-                per_page,
-                total,
-                pages,
-            },
-            timestamp: Utc::now(),
-        }
-    }
 }
 
 /// Analytics paginated response
@@ -281,25 +233,37 @@ impl ContributionPaginatedResponse {
 pub struct AnalyticsPaginatedResponse {
     pub data: Vec<AnalyticsResponse>,
     pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
 
-impl AnalyticsPaginatedResponse {
-    pub fn new(data: Vec<AnalyticsResponse>, page: i64, per_page: i64, total: i64) -> Self {
-        let pages = (total + per_page - 1) / per_page; // Ceiling division
+// Macro to generate paginated response implementations
+macro_rules! impl_paginated_response {
+    ($response_type:ty, $data_type:ty) => {
+        impl $response_type {
+            pub fn new(data: Vec<$data_type>, page: i64, per_page: i64, total: i64) -> Self {
+                let pages = (total.saturating_add(per_page).saturating_sub(1)) / per_page;
 
-        Self {
-            data,
-            pagination: PaginationInfo {
-                page,
-                per_page,
-                total,
-                pages,
-            },
-            timestamp: Utc::now(),
+                Self {
+                    data,
+                    pagination: PaginationInfo {
+                        page,
+                        per_page,
+                        total,
+                        pages,
+                    },
+                    timestamp: Utc::now(),
+                }
+            }
         }
-    }
+    };
 }
+
+impl_paginated_response!(DictionaryPaginatedResponse, DictionaryEntryResponse);
+impl_paginated_response!(UserPaginatedResponse, UserResponse);
+impl_paginated_response!(TranslationPaginatedResponse, TranslationResponse);
+impl_paginated_response!(ContributionPaginatedResponse, ContributionResponse);
+impl_paginated_response!(AnalyticsPaginatedResponse, AnalyticsResponse);
 
 /// Health check response
 #[derive(Debug, Serialize, ToSchema)]
@@ -308,6 +272,7 @@ pub struct HealthResponse {
     pub status: String,
     #[schema(example = "0.1.0")]
     pub version: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
     #[schema(example = "connected")]
     pub database: String,
@@ -341,7 +306,7 @@ pub struct TranslationResponse {
     #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
     pub user_id: Uuid,
     #[schema(example = "user@example.com")]
-    pub created_by_email: Option<String>,
+    pub user_email: Option<String>,
     #[schema(example = "Hello world")]
     pub source_text: String,
     #[schema(example = "en")]
@@ -358,6 +323,8 @@ pub struct TranslationResponse {
     pub confidence_score: Option<f64>,
     pub reviewed: bool,
     pub reviewed_by: Option<Uuid>,
+    #[schema(example = "reviewer@example.com")]
+    pub reviewed_by_email: Option<String>,
     pub reviewed_at: Option<DateTime<Utc>>,
     pub metadata: serde_json::Value,
     pub created_at: DateTime<Utc>,
@@ -371,6 +338,8 @@ pub struct ContributionResponse {
     pub id: Uuid,
     #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
     pub user_id: Uuid,
+    #[schema(example = "contributor@example.com")]
+    pub user_email: Option<String>,
     #[schema(example = "dictionary_entry")]
     pub contribution_type: String,
     #[schema(example = "pnar_dictionary")]
@@ -386,6 +355,8 @@ pub struct ContributionResponse {
     #[schema(example = "approved")]
     pub status: String,
     pub reviewed_by: Option<Uuid>,
+    #[schema(example = "reviewer@example.com")]
+    pub reviewed_by_email: Option<String>,
     pub reviewed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
@@ -398,6 +369,8 @@ pub struct AnalyticsResponse {
     #[schema(example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")]
     pub word_id: Uuid,
     pub user_id: Option<Uuid>,
+    #[schema(example = "user@example.com")]
+    pub user_email: Option<String>,
     #[schema(example = "search")]
     pub event_type: String,
     #[schema(example = "2023-01-01T00:00:00Z")]
