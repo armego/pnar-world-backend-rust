@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS pnar_dictionary (
     difficulty_level INTEGER DEFAULT 1,
     usage_frequency INTEGER DEFAULT 0,
     cultural_context TEXT,
-    related_words JSONB DEFAULT '[]',
+    related_words TEXT,
     pronunciation VARCHAR(255),
     etymology TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

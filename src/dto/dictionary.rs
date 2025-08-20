@@ -47,7 +47,7 @@ pub struct CreateDictionaryEntryRequest {
 
     #[schema(example = "Common daily usage")]
     pub cultural_context: Option<String>,
-    pub related_words: Option<serde_json::Value>,
+    pub related_words: Option<String>,
     #[schema(example = "ka")]
     pub pronunciation: Option<String>,
     #[schema(example = "From Proto-Austroasiatic")]
@@ -95,7 +95,7 @@ pub struct UpdateDictionaryEntryRequest {
     pub usage_frequency: Option<i32>,
 
     pub cultural_context: Option<String>,
-    pub related_words: Option<serde_json::Value>,
+    pub related_words: Option<String>,
     pub pronunciation: Option<String>,
     pub etymology: Option<String>,
 }

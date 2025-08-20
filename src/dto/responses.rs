@@ -128,7 +128,7 @@ pub struct DictionaryEntryResponse {
     pub usage_frequency: Option<i32>,
     #[schema(example = "Common daily usage")]
     pub cultural_context: Option<String>,
-    pub related_words: Option<serde_json::Value>,
+    pub related_words: Option<String>,
     #[schema(example = "ka")]
     pub pronunciation: Option<String>,
     #[schema(example = "From Proto-Austroasiatic")]
