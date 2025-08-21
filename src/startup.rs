@@ -1,13 +1,12 @@
 use crate::{
-    config::Settings, database::create_connection_pool, error::AppResult, handlers,
-    middleware::auth::AuthMiddleware, openapi::ApiDoc,
+    config::Settings, database::create_connection_pool, error::{AppResult, AppError}, handlers,
+    middleware::auth::AuthMiddleware, openapi::ApiDoc, state::AppState,
 };
 use actix_cors::Cors;
 use actix_web::{
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
 };
-use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing::info;
 use tracing_actix_web::TracingLogger;
@@ -21,7 +20,21 @@ pub struct Application {
 
 impl Application {
     pub async fn build(settings: Settings) -> AppResult<Self> {
-        let connection_pool = create_connection_pool(&settings.database).await?;
+        let app_state = web::Data::new(AppState::new());
+        
+        // Try to connect to database once
+        let pool = match create_connection_pool(&settings.database).await {
+            Ok(pool) => {
+                info!("Database connection established successfully");
+                app_state.set_db_pool(pool.clone()).await;
+                pool
+            }
+            Err(e) => {
+                info!("Failed to connect to database: {}. Starting without database connection.", e);
+                return Err(e.into());
+            }
+        };
+        let _pool_data = web::Data::new(pool);
 
         let address = format!(
             "{}:{}",
@@ -30,7 +43,7 @@ impl Application {
         let listener = TcpListener::bind(&address)?;
         let port = listener.local_addr().unwrap().port();
 
-        let server = run(listener, connection_pool, settings)?;
+        let server = run(listener, app_state, settings).await?;
 
         Ok(Self { port, server })
     }
@@ -44,21 +57,27 @@ impl Application {
     }
 }
 
-fn run(
+async fn run(
     listener: TcpListener,
-    db_pool: PgPool,
+    app_state: web::Data<AppState>,
     settings: Settings,
 ) -> AppResult<actix_web::dev::Server> {
-    let db_pool = web::Data::new(db_pool);
     let settings_data = web::Data::new(settings);
+
+    let pool_data = match app_state.get_db_pool().await {
+        Some(pool) => web::Data::new(pool),
+        None => return Err(AppError::Internal("Database connection not available".to_string())),
+    };
+    let pool_data = pool_data.clone();
 
     let server = HttpServer::new(move || {
         let _cors = configure_cors(&settings_data.application.cors);
         let openapi = ApiDoc::openapi();
 
         App::new()
-            .app_data(db_pool.clone())
+            .app_data(app_state.clone())
             .app_data(settings_data.clone())
+            .app_data(pool_data.clone())
             .wrap(Cors::permissive())
             .wrap(TracingLogger::default())
             .wrap(Logger::default())

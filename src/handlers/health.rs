@@ -1,6 +1,5 @@
-use crate::{database, dto::HealthResponse, error::AppError};
+use crate::{database, dto::HealthResponse, error::AppError, state::AppState};
 use actix_web::{get, web, HttpResponse};
-use sqlx::PgPool;
 use utoipa;
 
 #[utoipa::path(
@@ -13,12 +12,17 @@ use utoipa;
     )
 )]
 #[get("/health")]
-pub async fn health_check(pool: web::Data<PgPool>) -> Result<HttpResponse, AppError> {
+pub async fn health_check(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let version = env!("CARGO_PKG_VERSION");
+    let db = state.db.read().await;
 
-    match database::health_check(&pool).await {
-        Ok(_) => Ok(HttpResponse::Ok().json(HealthResponse::healthy(version))),
-        Err(_) => Ok(HttpResponse::ServiceUnavailable()
-            .json(HealthResponse::unhealthy(version, "disconnected"))),
+    match db.as_ref() {
+        Some(pool) => match database::health_check(pool).await {
+            Ok(_) => Ok(HttpResponse::Ok().json(HealthResponse::healthy(version))),
+            Err(_) => Ok(HttpResponse::ServiceUnavailable()
+                .json(HealthResponse::unhealthy(version, "database error"))),
+        },
+        None => Ok(HttpResponse::ServiceUnavailable()
+            .json(HealthResponse::unhealthy(version, "database not connected"))),
     }
 }

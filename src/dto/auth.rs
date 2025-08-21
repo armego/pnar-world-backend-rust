@@ -6,7 +6,7 @@ use validator::Validate;
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct RegisterRequest {
     #[validate(email(message = "Invalid email format"))]
-    #[schema(example = "user@example.com")]
+    #[schema(example = "user@pnar.online")]
     pub email: String,
 
     #[validate(length(min = 8, message = "Password must be at least 8 characters long"))]
@@ -26,7 +26,7 @@ pub struct RegisterRequest {
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct LoginRequest {
     #[validate(email(message = "Invalid email format"))]
-    #[schema(example = "user@example.com")]
+    #[schema(example = "user@pnar.online")]
     pub email: String,
 
     #[validate(length(min = 1, message = "Password is required"))]

@@ -3,6 +3,7 @@ pub mod constants;
 pub mod database;
 pub mod dto;
 pub mod error;
+pub mod state;
 pub mod handlers;
 pub mod logging;
 pub mod middleware;

@@ -61,22 +61,9 @@ pub struct LoggingSettings {
 impl Settings {
     pub fn load() -> Result<Self, config::ConfigError> {
         let base_path = std::env::current_dir().expect("Failed to determine the current directory");
-        let configuration_directory = base_path.join("configuration");
 
-        // Detect the running environment
-        let environment: Environment = std::env::var("APP_ENVIRONMENT")
-            .unwrap_or_else(|_| "development".into())
-            .try_into()
-            .expect("Failed to parse APP_ENVIRONMENT");
-
-        let environment_filename = format!("{}.yaml", environment.as_str());
         let settings = config::Config::builder()
-            .add_source(config::File::from(
-                configuration_directory.join("base.yaml"),
-            ))
-            .add_source(config::File::from(
-                configuration_directory.join(environment_filename),
-            ))
+            .add_source(config::File::from(base_path.join("configuration.yaml")))
             .add_source(
                 config::Environment::with_prefix("APP")
                     .prefix_separator("_")

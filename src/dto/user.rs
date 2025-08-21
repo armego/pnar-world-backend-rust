@@ -6,7 +6,7 @@ use validator::Validate;
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct CreateUserRequest {
     #[validate(email(message = "Invalid email format"))]
-    #[schema(example = "user@example.com")]
+    #[schema(example = "user@pnar.online")]
     pub email: String,
 
     #[validate(length(min = 8, message = "Password must be at least 8 characters long"))]
@@ -53,7 +53,7 @@ pub struct CreateUserRequest {
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateUserRequest {
     #[validate(email(message = "Invalid email format"))]
-    #[schema(example = "newemail@example.com")]
+    #[schema(example = "user@pnar.online")]
     pub email: Option<String>,
 
     #[validate(length(
