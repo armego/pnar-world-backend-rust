@@ -1,40 +1,19 @@
-FROM rust:1.75.0 AS builder
-MAINTAINER Stavros Grigoriou <unix121@protonmail.com>
+FROM rust:1.89.0 as builder
 
 WORKDIR /app
-
-RUN USER=root cargo init
-
-# Download the dependency code
-COPY Cargo.toml Cargo.toml
-RUN cargo fetch
-
-# Copy the source code and configurations
-COPY src src
-COPY sqlx-data.json sqlx-data.json
-# FIXME: Update the configuration to production
-COPY configuration-prod.yaml configuration.yaml
-COPY .env.docker .env
-
-# Build the application
-ENV SQLX_OFFLINE true
+COPY . .
 
 RUN cargo build --release
 
-FROM bitnami/minideb:bookworm AS runtime
+FROM debian:bookworm-slim
 
-RUN apt-get update -y \
-      && apt install -y --no-install-recommends openssl ca-certificates \
-      && apt-get autoremove -y \
-      && apt-get clean -y \
-      && rm -rf /var/lib/apt/lists/*
+WORKDIR /usr/local/bin
 
-COPY --from=builder /app/target/release/api /
-COPY --from=builder /app/configuration.yaml /
-COPY --from=builder /app/.env /
+COPY --from=builder /app/target/release/pnar-world-backend-rust .
 
-USER 1001
+# ENV DATABASE_URL=postgres://postgres:root@localhost:5432/pnar_word
+# ENV RUST_LOG=info
 
 EXPOSE 8000
 
-ENTRYPOINT ["./api"]
+CMD ["./pnar-world-backend-rust"]
