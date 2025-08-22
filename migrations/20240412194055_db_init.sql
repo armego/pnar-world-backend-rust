@@ -205,7 +205,7 @@ ON CONFLICT (pnar_word) DO NOTHING;
 -- Hash generated with bcrypt cost 12: $argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8
 INSERT INTO users (id, email, password, full_name, role, is_active, is_email_verified) VALUES
 (gen_random_uuid(), 'superadmin@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'System Administrator', 'superadmin', true, true),
-(gen_random_uuid(), 'admine@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'Admin', 'admin', true, true),
+(gen_random_uuid(), 'admin@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'Admin', 'admin', true, true),
 (gen_random_uuid(), 'translator@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'Translator', 'translator', true, true),
 (gen_random_uuid(), 'user@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'User', 'user', true, false),
 (gen_random_uuid(), 'alice.brown@pnar.online', '$argon2id$v=19$m=19456,t=2,p=1$+vfp4XxLj3tSeQ4gJ4OMLA$9vao++jFjkAvkUUc02h2Aq0uTfwbNMK2irsH2qyQit8', 'Alice Brown', 'user', false, false)
