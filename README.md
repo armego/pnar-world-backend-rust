@@ -5,142 +5,103 @@ This is the backend API for PNAR World, implemented in Rust.
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Podman](https://podman.io/getting-started/installation) or Docker
-- PostgreSQL client (optional)
-
-## Quick Start
-
-1. Clone the repository:
-```bash
-git clone https://github.com/armego/pnar-world-backend-rust.git
-cd pnar-world-backend-rust
-```
-
-2. Run the automated setup script:
-
-   On Linux/macOS:
-   ```bash
-   chmod +x start-pod.sh
-   ./start-pod.sh
-   ```
-
-   On Windows (Git Bash or similar):
-   ```bash
-   bash start-pod.sh
-   ```
-
-   On Windows (Command Prompt):
-   ```cmd
-   bash.exe start-pod.sh
-   ```
-
-   The script will:
-   - Check for required dependencies
-   - Clean up any existing resources
-   - Build the API image
-   - Create necessary volumes
-   - Deploy all services
-   - Set up the database
-   - Provide connection information
-
-   If anything fails, the script will provide helpful error messages and instructions.
-
-3. Alternatively, you can manually build and run the containers:
-   ```bash
-   # Build the API image
-   podman build -t localhost/pnar-world-api:1.0.0 .
-
-   # Start the pod with all services
-   podman play kube pod.yaml
-   ```
-
-## Accessing Services
-
-After starting the pod, you can access the following services:
-
-- **API**: [http://localhost:8000](http://localhost:8000)
-  - Swagger UI: [http://localhost:8000/swagger-ui/](http://localhost:8000/swagger-ui/)
-  - OpenAPI Spec: [http://localhost:8000/api-docs/openapi.json](http://localhost:8000/api-docs/openapi.json)
-  - Health Check: [http://localhost:8000/api/v1/actuator/health](http://localhost:8000/api/v1/actuator/health)
-
-- **PgAdmin**: [http://localhost:9001](http://localhost:9001)
-  - Email: `admin@pnar.online`
-  - Password: `root`
-
-- **PostgreSQL**:
-  - Host: `localhost`
-  - Port: `5432`
-  - Database: `pnar_world`
-  - Username: `postgres`
-  - Password: `root`
+- [Podman](https://podman.io/getting-started/installation) (or Docker)
+- PostgreSQL (for local development)
 
 ## Development
 
-To connect to PostgreSQL using psql:
-```bash
-psql -h localhost -U postgres -d pnar_world
-```
+You can run this project either locally or using containers.
 
-To check container status:
-```bash
-podman ps
-```
+### Local Development
 
-To view container logs:
-```bash
-# API logs
-podman logs -f pw-pod-pnar-world-api-podified
+1. Make sure PostgreSQL is running locally with:
+   - Database: `pnar_world`
+   - Username: `postgres`
+   - Password: `root`
+   - Port: `5432`
 
-# Database logs
-podman logs -f pw-pod-postgres-podified
-
-# PgAdmin logs
-podman logs -f pw-pod-pgadmin-podified
-```
-
-To stop all services:
-```bash
-podman pod rm -f pw-pod
-```
-
-## Troubleshooting
-
-1. **Script fails to start**
-   - Ensure Podman is installed and in your PATH
-   - On Windows, make sure you have Git Bash or similar bash shell installed
-   - Check if ports 8000, 9001, and 5432 are available
-
-2. **Database initialization fails**
-   - Check if the migrations directory exists and contains .sql files
-   - Verify the SQL files are valid PostgreSQL syntax
-   - Check container logs: `podman logs pw-pod-postgres-podified`
-
-3. **Can't connect to services**
-   - API: Check `podman logs pw-pod-api-podified`
-   - Database: Ensure PostgreSQL is ready with `podman logs pw-pod-postgres-podified`
-   - PgAdmin: Verify logs with `podman logs pw-pod-pgadmin-podified`
-
-4. **Need to start fresh**
+2. Run the application:
    ```bash
-   # Remove all related resources
-   podman pod rm -f pw-pod
-   podman volume rm -f pg-data migrations
-   podman rmi localhost/pnar-world-api:1.0.0
+   cargo run
    ```
 
-5. **Windows-specific issues**
-   - If using WSL, ensure Podman is properly configured
-   - Path issues: Use forward slashes (/) or properly escaped backslashes (\\)
-   - Line endings: Ensure scripts use LF (Unix) line endings
+The API will be available at http://localhost:8000
 
-For more detailed logs and debugging:
-```bash
-# Run script with debug output
-bash -x start-pod.sh
+### Container Development
 
-# Check pod status
-podman pod ps
+1. Start all services (API, PostgreSQL, and pgAdmin):
+   ```bash
+   ./start.sh
+   ```
 
-# View all container logs
-podman pod logs pw-pod
+   This script will:
+   - Build the API image
+   - Create a pod with all services
+   - Wait for PostgreSQL to be ready
+   - Provide access information
+
+2. Access the services:
+   - API & Swagger UI: http://localhost:8000/swagger-ui/index.html
+   - PgAdmin: http://localhost:9001
+     - Email: `admin@pnar.online`
+     - Password: `root`
+   - PostgreSQL:
+     - Host: `localhost`
+     - Port: `5432`
+     - Database: `pnar_world`
+     - Username: `postgres`
+     - Password: `root`
+
+### Configuration
+
+The application uses a single `configuration.yaml` file with environment variable overrides:
+
+```yaml
+# Local development defaults (no env vars needed)
+database:
+  host: "127.0.0.1"
+  port: 5432
+  ...
+
+# Container overrides (set via pod.yaml)
+DATABASE_HOST: postgres
+APPLICATION_HOST: 0.0.0.0
 ```
+
+### Troubleshooting
+
+1. **Database Connection Issues**
+   - For local development, ensure PostgreSQL is running on localhost
+   - For containers, check if the postgres container is running:
+     ```bash
+     podman ps
+     ```
+
+2. **Container Logs**
+   ```bash
+   # View pod logs
+   podman pod logs pw-pod
+   ```
+
+3. **Clean Restart**
+   ```bash
+   # Remove all containers and pods
+   podman pod rm -f $(podman pod ls -q)
+   
+   # Start fresh
+   ./start.sh
+   ```
+
+4. **API Not Accessible**
+   - Local: Check if something else is using port 8000
+   - Container: Verify the API container is running and check its logs
+
+## Contributing
+
+1. Create a new branch
+2. Make your changes
+3. Submit a pull request
+
+## License
+
+[MIT](LICENSE)

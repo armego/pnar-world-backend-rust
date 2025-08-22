@@ -38,8 +38,10 @@ spec:
     - name: api
       image: pnar-world-api:1.0.0
       env:
-        - name: DATABASE_URL
-          value: postgres://postgres:root@postgres:5432/pnar_world
+        - name: DATABASE_HOST
+          value: postgres
+        - name: APPLICATION_HOST
+          value: 0.0.0.0
         - name: RUST_LOG
           value: debug
       ports:

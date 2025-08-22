@@ -1,5 +1,5 @@
 application:
-  # Host address - use 0.0.0.0 for production, 127.0.0.1 for development
+  # Host address - use 0.0.0.0 in container, 127.0.0.1 locally
   host: "127.0.0.1"
   port: 8000
   base_url: "http://localhost:8000"
@@ -13,7 +13,7 @@ database:
   username: "postgres"
   password: "root"
   port: 5432
-  host: "127.0.0.1"
+  host: "127.0.0.1"  # Default to localhost
   database_name: "pnar_world"
   require_ssl: false
   max_connections: 10

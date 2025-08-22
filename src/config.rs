@@ -65,9 +65,8 @@ impl Settings {
         let settings = config::Config::builder()
             .add_source(config::File::from(base_path.join("configuration.yaml")))
             .add_source(
-                config::Environment::with_prefix("APP")
-                    .prefix_separator("_")
-                    .separator("__"),
+                config::Environment::default()
+                    .separator("_"),
             )
             .build()?;
 
