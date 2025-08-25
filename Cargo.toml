@@ -1,11 +1,13 @@
 [package]
 name = "pnar-world-api"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Stavros Grigoriou <unix121@protonmail.com>"]
 description = "Pnar World Dictionary API - A modern web service for Pnar language translation"
 license = "MIT"
-repository = "https://github.com/armego/aaum-service"
+repository = "https://github.com/armego/pnar-world-backend-rust"
+keywords = ["api", "dictionary", "translation", "pnar", "language"]
+categories = ["web-programming", "internationalization"]
 
 [lib]
 path = "src/lib.rs"
@@ -70,7 +72,20 @@ validator = { version = "0.18", features = ["derive"] }
 utoipa = { version = "4.2", features = ["actix_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "6.0", features = ["actix-web"] }
 
-# Release profile optimizations
+# System monitoring
+num_cpus = "1.16"
+
+# Additional security
+sha2 = "0.10"
+base64 = "0.22"
+
+# Performance monitoring
+tokio-metrics = "0.3"
+
+# Environment detection
+once_cell = "1.19"
+
+# Production optimizations
 [profile.release]
 opt-level = 3           # Maximum optimization
 lto = true             # Link-time optimization
@@ -78,9 +93,15 @@ codegen-units = 1      # Better optimization
 panic = "abort"        # Smaller binary, better performance
 debug = false          # Remove debug info
 overflow-checks = true # Safety in release mode
+strip = true           # Remove symbols for smaller binary
 
 # Development profile optimizations  
 [profile.dev]
 opt-level = 0          # Fast compilation
 debug = true           # Include debug info
 overflow-checks = true # Safety in development
+
+# Test profile
+[profile.test]
+opt-level = 1          # Some optimization for faster tests
+debug = true           # Keep debug info for tests

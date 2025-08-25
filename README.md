@@ -1,222 +1,374 @@
-# PNAR World Backend (Rust)
+# PNAR World API 🌍
 
-This is the backend API for PNAR World, implemented in Rust.
+A modern, production-ready REST API for the Pnar language dictionary and translation service. Built with Rust, Actix-web, and PostgreSQL.
 
-## Prerequisites
+[![Rust](https://img.shields.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com)
 
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Podman](https://podman.io/getting-started/installation) (or Docker)
-- PostgreSQL (for local development)
+## 🚀 Features
 
-## Development
+### Core Functionality
+- **Dictionary Management**: Create, read, update, and delete Pnar dictionary entries
+- **Translation Services**: Request and manage translations between Pnar and English
+- **User Management**: Role-based authentication and authorization
+- **Analytics**: Track word usage and translation patterns
+- **Alphabet Conversion**: Convert between traditional and keyboard-friendly Pnar text
 
-You can run this project either locally or using containers.
+### Production-Ready Features
+- **Security**: Rate limiting, CORS, security headers, JWT authentication
+- **Monitoring**: Health checks, metrics, structured logging
+- **Performance**: Connection pooling, optimized queries, caching
+- **Reliability**: Fail-fast startup, graceful shutdown, error handling
+- **Observability**: Request tracing, performance metrics, database monitoring
 
-### Local Development
+## 🏗️ Architecture
 
-1. Make sure PostgreSQL is running locally with:
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client Apps   │    │   Load Balancer │    │   PNAR World    │
+│                 │◄──►│                 │◄──►│      API        │
+│ Web/Mobile/CLI  │    │  (nginx/traefik)│    │   (Rust/Actix)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                        │
+                                                        ▼
+                                               ┌─────────────────┐
+                                               │   PostgreSQL    │
+                                               │    Database     │
+                                               └─��───────────────┘
+```
 
-   - Database: `pnar_world`
-   - Username: `postgres`
-   - Password: `root`
-   - Port: `5432`
+## 🛠️ Technology Stack
 
-2. Run the application:
+- **Language**: Rust 1.89+
+- **Web Framework**: Actix-web 4.9
+- **Database**: PostgreSQL 15+ with SQLx
+- **Authentication**: JWT with Argon2 password hashing
+- **Documentation**: OpenAPI 3.0 with Swagger UI
+- **Containerization**: Docker/Podman with multi-stage builds
+- **Monitoring**: Built-in health checks and metrics
+
+## 📋 Prerequisites
+
+- **Rust**: 1.89 or later
+- **PostgreSQL**: 15 or later
+- **Container Runtime**: Docker or Podman
+- **System**: Linux, macOS, or Windows
+
+## 🚀 Quick Start
+
+### Development Setup
+
+1. **Clone the repository**
    ```bash
-   cargo run
+   git clone https://github.com/armego/pnar-world-backend-rust.git
+   cd pnar-world-backend-rust
    ```
 
-The API will be available at http://localhost:8000
-
-### Container Development
-
-1. Start all services (API, PostgreSQL, and pgAdmin):
-
+2. **Start the development environment**
    ```bash
    ./start.sh
    ```
 
-   This script will:
+3. **Access the API**
+   - API: http://localhost:8000
+   - Documentation: http://localhost:8000/swagger-ui/index.html
+   - Database Admin: http://localhost:8080
 
-   - Build the API image
-   - Create a pod with all services
-   - Wait for PostgreSQL to be ready
-   - Provide access information
+### Production Deployment
 
-2. Access the services:
-   - API & Swagger UI: http://localhost:8000/swagger-ui/index.html
-   - PgAdmin: http://localhost:9001
-     - Email: `admin@pnar.online`
-     - Password: `root`
-   - PostgreSQL:
-     - Host: `localhost`
-     - Port: `5432`
-     - Database: `pnar_world`
-     - Username: `postgres`
-     - Password: `root`
+1. **Build and deploy**
+   ```bash
+   ./deploy.sh
+   ```
 
-### Configuration
+2. **Or use Docker Compose**
+   ```bash
+   cd deploy
+   docker-compose up -d
+   ```
 
-The application uses a single `configuration.yaml` file with environment variable overrides:
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `APP_ENVIRONMENT` | Environment (development/production) | development | No |
+| `DATABASE_HOST` | PostgreSQL host | 127.0.0.1 | Yes |
+| `DATABASE_USERNAME` | Database username | postgres | Yes |
+| `DATABASE_PASSWORD` | Database password | - | Yes |
+| `DATABASE_NAME` | Database name | pnar_world | Yes |
+| `JWT_SECRET` | JWT signing secret | - | Yes |
+| `RUST_LOG` | Log level | info | No |
+
+### Configuration Files
+
+- `configuration.yaml` - Development configuration
+- `configuration.production.yaml` - Production configuration
+
+## 🔒 Security
+
+### Authentication & Authorization
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Argon2 password hashing
+- Session management
+
+### Security Measures
+- Rate limiting (60 requests/minute by default)
+- CORS configuration
+- Security headers (CSP, HSTS, etc.)
+- Input validation and sanitization
+- SQL injection prevention
+
+### Roles & Permissions
+
+| Role | Permissions |
+|------|-------------|
+| `superadmin` | Full system access |
+| `admin` | User and content management |
+| `moderator` | Content moderation and verification |
+| `translator` | Translation and dictionary management |
+| `contributor` | Content creation |
+| `user` | Basic API access |
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/logout` - User logout
+- `GET /api/v1/auth/profile` - Get user profile
+
+### Dictionary
+- `GET /api/v1/dictionary` - List dictionary entries
+- `POST /api/v1/dictionary` - Create dictionary entry
+- `GET /api/v1/dictionary/{id}` - Get dictionary entry
+- `PUT /api/v1/dictionary/{id}` - Update dictionary entry
+- `DELETE /api/v1/dictionary/{id}` - Delete dictionary entry
+
+### Health & Monitoring
+- `GET /api/v1/health` - Comprehensive health check
+- `GET /api/v1/health/live` - Liveness probe
+- `GET /api/v1/health/ready` - Readiness probe
+- `GET /api/v1/metrics` - Application metrics
+
+### Documentation
+- `GET /swagger-ui/index.html` - Interactive API documentation
+- `GET /api-doc/openapi.json` - OpenAPI specification
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose
 
 ```yaml
-# Local development defaults (no env vars needed)
-database:
-  host: "127.0.0.1"
-  port: 5432
-  ...
+version: '3.8'
+services:
+  api:
+    image: pnar-world-api:1.0.0
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENVIRONMENT=production
+      - DATABASE_HOST=postgres
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=your-password
+      - JWT_SECRET=your-jwt-secret
+    depends_on:
+      - postgres
+    
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=pnar_world
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=your-password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-# Container overrides (set via pod.yaml)
-DATABASE_HOST: postgres
-APPLICATION_HOST: 0.0.0.0
+volumes:
+  postgres_data:
 ```
 
-### Troubleshooting
+### Using Kubernetes
 
-1. **Database Connection Issues**
+```bash
+kubectl apply -f deploy/deployment.yaml
+```
 
-   - For local development, ensure PostgreSQL is running on localhost
-   - For containers, check if the postgres container is running:
-     ```bash
-     podman ps
-     ```
+## 📈 Monitoring & Observability
 
-2. **Container Logs**
+### Health Checks
+- **Liveness**: `/api/v1/health/live` - Basic service availability
+- **Readiness**: `/api/v1/health/ready` - Service ready to handle requests
+- **Health**: `/api/v1/health` - Comprehensive system health
 
-   ```bash
-   # View pod logs
-   podman pod logs pw-pod
+### Metrics
+- **Application**: Request counts, response times, error rates
+- **Database**: Connection pool stats, query performance
+- **System**: Memory usage, CPU utilization
+
+### Logging
+- Structured JSON logging
+- Request tracing with correlation IDs
+- Error tracking and alerting
+- Performance monitoring
+
+## 🧪 Testing
+
+### Run Tests
+```bash
+# Unit tests
+cargo test
+
+# Integration tests
+cargo test --test integration
+
+# Linting
+cargo clippy
+
+# Security audit
+cargo audit
+```
+
+### Load Testing
+```bash
+# Using Apache Bench
+ab -n 1000 -c 10 http://localhost:8000/api/v1/health
+
+# Using wrk
+wrk -t12 -c400 -d30s http://localhost:8000/api/v1/health
+```
+
+## 🔧 Development
+
+### Project Structure
+```
+src/
+├── config.rs          # Configuration management
+├── database.rs        # Database connection and migrations
+├── error.rs           # Error handling
+├── handlers/          # HTTP request handlers
+├── middleware/        # Custom middleware
+├── models/            # Data models
+├── services/          # Business logic
+├── utils/             # Utility functions
+└── main.rs           # Application entry point
+
+migrations/            # Database migrations
+deploy/               # Deployment configurations
+```
+
+### Adding New Features
+
+1. **Create a new handler**
+   ```rust
+   // src/handlers/my_feature.rs
+   use actix_web::{web, HttpResponse};
+   
+   pub async fn my_endpoint() -> Result<HttpResponse, AppError> {
+       Ok(HttpResponse::Ok().json("Hello, World!"))
+   }
    ```
 
-3. **Clean Restart**
-
-   ```bash
-   # Remove all containers and pods
-   podman pod rm -f $(podman pod ls -q)
-
-   # Start fresh
-   ./start.sh
+2. **Add to routing**
+   ```rust
+   // src/startup.rs
+   .route("/my-feature", web::get().to(handlers::my_feature::my_endpoint))
    ```
 
-4. **API Not Accessible**
-   - Local: Check if something else is using port 8000
-   - Container: Verify the API container is running and check its logs
+3. **Add tests**
+   ```rust
+   #[cfg(test)]
+   mod tests {
+       use super::*;
+       
+       #[tokio::test]
+       async fn test_my_endpoint() {
+           // Test implementation
+       }
+   }
+   ```
 
-## Contributing
+## 🚨 Troubleshooting
 
-1. Create a new branch
-2. Make your changes
-3. Submit a pull request
+### Common Issues
 
-## License
+**Database Connection Failed**
+```bash
+# Check database is running
+podman ps | grep postgres
 
-[MIT](LICENSE)
+# Check connection
+psql -h localhost -U postgres -d pnar_world
+```
+
+**Migration Errors**
+```bash
+# Reset database
+./start.sh  # This will recreate the database
+
+# Manual migration
+sqlx migrate run --database-url postgresql://postgres:root@localhost/pnar_world
+```
+
+**Container Won't Start**
+```bash
+# Check logs
+podman logs pnar-app-pod-api
+
+# Check health
+curl http://localhost:8000/api/v1/health
+```
+
+### Performance Tuning
+
+**Database**
+- Adjust connection pool size in configuration
+- Monitor slow queries
+- Add database indexes for frequently queried fields
+
+**Application**
+- Tune worker count based on CPU cores
+- Adjust request timeout settings
+- Enable compression for large responses
+
+## 📚 Documentation
+
+- [API Documentation](http://localhost:8000/swagger-ui/index.html) - Interactive API docs
+- [Database Schema](./docs/database-schema.md) - Database structure
+- [Deployment Guide](./docs/deployment.md) - Detailed deployment instructions
+- [Contributing Guide](./CONTRIBUTING.md) - How to contribute
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👥 Authors
+
+- **Stavros Grigoriou** - *Initial work* - [unix121@protonmail.com](mailto:unix121@protonmail.com)
+
+## 🙏 Acknowledgments
+
+- The Rust community for excellent tooling and libraries
+- The Pnar language community for cultural guidance
+- Contributors and testers who helped improve the API
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/armego/pnar-world-backend-rust/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/armego/pnar-world-backend-rust/discussions)
+- **Email**: [unix121@protonmail.com](mailto:unix121@protonmail.com)
 
 ---
 
-## Production Deployment (manage.pnar.online)
-
-To deploy the API service to your VPS and expose it at `manage.pnar.online`:
-
-### 1. Prepare your VPS
-
-- Install Podman (or Docker)
-- Open firewall ports 80 (HTTP), 443 (HTTPS), 8000 (API), 9001 (pgAdmin), 5432 (Postgres) as needed
-
-### 2. Clone your project
-
-```bash
-git clone https://github.com/armego/pnar-world-backend-rust.git
-cd pnar-world-backend-rust
-```
-
-### 3. Update configuration for production
-
-Edit `configuration.yaml`:
-
-```yaml
-application:
-  host: "0.0.0.0"
-  port: 8000
-  base_url: "https://manage.pnar.online"
-  cors:
-    allowed_origins: ["https://manage.pnar.online"]
-    ...existing code...
-
-database:
-  host: "postgres"
-  ...existing code...
-
-jwt:
-  secret: "<your-secure-production-secret>"
-  cookie_domain: "manage.pnar.online"
-  cookie_secure: true
-  ...existing code...
-```
-
-### 4. Update pod.yaml for production
-
-Set environment variables for the API container:
-
-```yaml
-env:
-  - name: DATABASE_HOST
-    value: postgres
-  - name: APPLICATION_HOST
-    value: 0.0.0.0
-  - name: RUST_LOG
-    value: info
-```
-
-### 5. Build and start the services
-
-```bash
-podman build -t pnar-world-api:1.0.0 .
-podman play kube pod.yaml
-```
-
-### 6. Set up HTTPS (recommended)
-
-- Use a reverse proxy (Nginx, Caddy, or Traefik) to:
-  - Forward requests from `manage.pnar.online` to the API container (port 8000)
-  - Terminate SSL (Let's Encrypt recommended)
-- Example Nginx config:
-
-```nginx
-server {
-    listen 80;
-    server_name manage.pnar.online;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name manage.pnar.online;
-
-    ssl_certificate /etc/letsencrypt/live/manage.pnar.online/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/manage.pnar.online/privkey.pem;
-
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### 7. Access your services
-
-- API & Swagger UI: https://manage.pnar.online/swagger-ui/index.html
-- PgAdmin: http://<your-vps-ip>:9001
-- PostgreSQL: as configured
-
-### 8. Security recommendations
-
-- Change all default passwords
-- Restrict access to pgAdmin and Postgres (firewall, VPN, or local only)
-- Keep your VPS updated
-- Use HTTPS for all API traffic
-
----
+**Made with ❤️ for the Pnar language community**
