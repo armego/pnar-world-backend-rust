@@ -187,48 +187,39 @@ pub async fn list_books(
     let search_pattern = params.search.as_ref().map(|search| format!("%{}%", search));
 
     // Bind parameters in order
-    let mut current_bind = 1;
-
     if !include_private {
         count_query_builder = count_query_builder.bind(true);
         data_query_builder = data_query_builder.bind(true);
-        current_bind += 1;
     }
 
     if let Some(ref language) = params.language {
         count_query_builder = count_query_builder.bind(language);
         data_query_builder = data_query_builder.bind(language);
-        current_bind += 1;
     }
 
     if let Some(ref genre) = params.genre {
         count_query_builder = count_query_builder.bind(genre);
         data_query_builder = data_query_builder.bind(genre);
-        current_bind += 1;
     }
 
     if let Some(ref status) = params.status {
         count_query_builder = count_query_builder.bind(status);
         data_query_builder = data_query_builder.bind(status);
-        current_bind += 1;
     }
 
     if let Some(difficulty_level) = params.difficulty_level {
         count_query_builder = count_query_builder.bind(difficulty_level);
         data_query_builder = data_query_builder.bind(difficulty_level);
-        current_bind += 1;
     }
 
     if let Some(ref pattern) = search_pattern {
         count_query_builder = count_query_builder.bind(pattern);
         data_query_builder = data_query_builder.bind(pattern);
-        current_bind += 1;
     }
 
     if let Some(ref tag) = params.tag {
         count_query_builder = count_query_builder.bind(tag);
         data_query_builder = data_query_builder.bind(tag);
-        current_bind += 1;
     }
 
     // Add limit and offset

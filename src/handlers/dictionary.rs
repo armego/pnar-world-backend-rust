@@ -6,7 +6,10 @@ use crate::{
         responses::ApiResponse,
     },
     error::AppError,
-    middleware::auth::{AuthenticatedUser, TranslatorUser, ModeratorUser},
+    middleware::{
+        auth::{AuthenticatedUser, ModeratorUser},
+        hierarchy::ManagerUser,
+    },
     services::dictionary_service,
 };
 use actix_web::{delete, get, post, put, web, HttpResponse};
@@ -33,7 +36,7 @@ pub struct PaginationQuery {
         (status = 201, description = "Dictionary entry created successfully", body = DictionaryEntryResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Translator role required"),
+        (status = 403, description = "Forbidden - Admin role required"),
         (status = 409, description = "Dictionary entry already exists"),
         (status = 422, description = "Validation error")
     )
@@ -41,7 +44,7 @@ pub struct PaginationQuery {
 #[post("")]
 pub async fn create_entry(
     pool: web::Data<PgPool>,
-    user: TranslatorUser, // Require translator role or higher
+    user: ManagerUser, // Require admin privileges for dictionary creation
     request: web::Json<CreateDictionaryEntryRequest>,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
@@ -188,7 +191,7 @@ pub async fn search_entries(
 #[put("/{id}")]
 pub async fn update_entry(
     pool: web::Data<PgPool>,
-    user: TranslatorUser, // Require translator role or higher
+    user: ManagerUser, // Require admin privileges for dictionary updates
     path: web::Path<Uuid>,
     request: web::Json<UpdateDictionaryEntryRequest>,
 ) -> Result<HttpResponse, AppError> {
@@ -221,7 +224,7 @@ pub async fn update_entry(
 #[delete("/{id}")]
 pub async fn delete_entry(
     pool: web::Data<PgPool>,
-    user: TranslatorUser, // Require translator role or higher
+    user: ManagerUser, // Require admin privileges for dictionary deletion
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let entry_id = path.into_inner();

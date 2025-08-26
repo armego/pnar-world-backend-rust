@@ -6,7 +6,6 @@ use chrono::{DateTime, Utc};
 pub enum UserRole {
     Admin,
     Moderator,
-    Translator,
     Contributor,
     User,
 }
@@ -16,7 +15,6 @@ impl From<String> for UserRole {
         match role.as_str() {
             "admin" => UserRole::Admin,
             "moderator" => UserRole::Moderator,
-            "translator" => UserRole::Translator,
             "contributor" => UserRole::Contributor,
             _ => UserRole::User,
         }
@@ -29,7 +27,6 @@ impl From<UserRole> for String {
         match role {
             UserRole::Admin => roles::ADMIN.to_string(),
             UserRole::Moderator => roles::MODERATOR.to_string(),
-            UserRole::Translator => roles::TRANSLATOR.to_string(),
             UserRole::Contributor => roles::CONTRIBUTOR.to_string(),
             UserRole::User => roles::USER.to_string(),
         }

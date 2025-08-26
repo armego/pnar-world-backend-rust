@@ -3,10 +3,7 @@ use actix_web::{HttpResponse, Result, get};
 use crate::{
     constants::roles::{get_all_roles, get_assignable_roles_info, get_manageable_roles_info},
     error::AppError,
-    middleware::{
-        auth::AuthenticatedUser,
-        hierarchy::ManagerUser,
-    },
+    middleware::hierarchy::ManagerUser,
 };
 
 /// Get all application roles (Public endpoint)

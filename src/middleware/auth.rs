@@ -33,14 +33,9 @@ impl AuthenticatedUser {
         self.is_admin() || self.role == roles::MODERATOR
     }
 
-    /// Check if the user has translator role or higher
-    pub fn is_translator(&self) -> bool {
-        self.is_moderator() || self.role == roles::TRANSLATOR
-    }
-
     /// Check if the user has contributor role or higher
     pub fn is_contributor(&self) -> bool {
-        self.is_translator() || self.role == roles::CONTRIBUTOR
+        self.is_moderator() || self.role == roles::CONTRIBUTOR
     }
 
     /// Check if the user can access another user's data based on hierarchy
@@ -63,9 +58,9 @@ impl AuthenticatedUser {
     }
 
     /// Check if the user can modify dictionary entries
-    /// Translators and above can modify entries
+    /// Contributors and above can modify entries
     pub fn can_modify_dictionary(&self) -> bool {
-        self.is_translator()
+        self.is_contributor()
     }
 
     /// Check if the user can verify dictionary entries
@@ -87,9 +82,9 @@ impl AuthenticatedUser {
     }
 
     /// Check if the user can review translations
-    /// Translators and above can review translations
+    /// Contributors and above can review translations
     pub fn can_review_translations(&self) -> bool {
-        self.is_translator()
+        self.is_contributor()
     }
 
     /// Check if the user can review contributions
@@ -120,10 +115,9 @@ impl AuthenticatedUser {
     /// Get role hierarchy level (higher number = more permissions)
     pub fn role_level(&self) -> u8 {
         match self.role.as_str() {
-            roles::SUPERADMIN => 6,
-            roles::ADMIN => 5,
-            roles::MODERATOR => 4,
-            roles::TRANSLATOR => 3,
+            roles::SUPERADMIN => 5,
+            roles::ADMIN => 4,
+            roles::MODERATOR => 3,
             roles::CONTRIBUTOR => 2,
             roles::USER => 1,
             _ => 0, // Unknown role gets lowest access
@@ -202,25 +196,6 @@ impl FromRequest for ModeratorUser {
         ready(match user {
             Some(user) if user.is_moderator() => Ok(ModeratorUser(user)),
             Some(_) => Err(AppError::Forbidden(error_messages::MODERATOR_ACCESS_REQUIRED)),
-            None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TranslatorUser(pub AuthenticatedUser);
-
-impl FromRequest for TranslatorUser {
-    type Error = AppError;
-    type Future = Ready<Result<Self, Self::Error>>;
-
-    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
-        let extensions = req.extensions();
-        let user = extensions.get::<AuthenticatedUser>().cloned();
-
-        ready(match user {
-            Some(user) if user.is_translator() => Ok(TranslatorUser(user)),
-            Some(_) => Err(AppError::Forbidden(error_messages::TRANSLATOR_ACCESS_REQUIRED)),
             None => Err(AppError::Unauthorized(error_messages::USER_NOT_AUTHENTICATED)),
         })
     }

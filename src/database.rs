@@ -39,59 +39,6 @@ pub async fn create_connection_pool(settings: &DatabaseSettings) -> AppResult<Pg
     Ok(pool)
 }
 
-pub async fn run_migrations(pool: &PgPool) -> AppResult<()> {
-    info!("Running database migrations...");
-    
-    // Check if migrations table exists
-    let migration_table_exists: (bool,) = sqlx::query_as(
-        "SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = '_sqlx_migrations'
-        )"
-    )
-    .fetch_one(pool)
-    .await?;
-    
-    if !migration_table_exists.0 {
-        info!("Migrations table does not exist, will be created");
-    }
-    
-    // Run migrations with timeout
-    let migration_result = tokio::time::timeout(
-        Duration::from_secs(300), // 5 minute timeout for migrations
-        sqlx::migrate!("./migrations").run(pool)
-    ).await;
-    
-    match migration_result {
-        Ok(Ok(_)) => {
-            info!("Database migrations completed successfully");
-            
-            // Log applied migrations
-            let applied_migrations: Vec<(String,)> = sqlx::query_as(
-                "SELECT version FROM _sqlx_migrations ORDER BY version"
-            )
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default();
-            
-            if !applied_migrations.is_empty() {
-                debug!("Applied migrations: {:?}", applied_migrations.iter().map(|(v,)| v).collect::<Vec<_>>());
-            }
-            
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            error!("Migration failed: {}", e);
-            Err(e.into())
-        }
-        Err(_) => {
-            error!("Migration timed out after 5 minutes");
-            Err(crate::error::AppError::Internal("Migration timeout".to_string()))
-        }
-    }
-}
-
 pub async fn health_check(pool: &PgPool) -> AppResult<DatabaseHealth> {
     let start = std::time::Instant::now();
     

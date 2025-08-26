@@ -41,16 +41,6 @@ impl Application {
         
         info!("Database connection established successfully");
         
-        // Run database migrations - fail fast if migrations fail
-        info!("Running database migrations...");
-        crate::database::run_migrations(&pool).await
-            .map_err(|e| {
-                tracing::error!("Database migrations failed: {}", e);
-                AppError::Internal(format!("Database migrations failed: {}", e))
-            })?;
-        
-        info!("Database migrations completed successfully");
-        
         // Validate database schema - ensure required tables exist
         info!("Validating database schema...");
         validate_database_schema(&pool).await
@@ -181,14 +171,18 @@ async fn run(
                     // Dictionary endpoints
                     .service(
                         web::scope("/dictionary")
-                            .wrap(AuthMiddleware)
-                            .service(handlers::dictionary::create_entry)
+                            // Public read endpoints
                             .service(handlers::dictionary::get_entry)
                             .service(handlers::dictionary::list_entries)
                             .service(handlers::dictionary::search_entries)
-                            .service(handlers::dictionary::update_entry)
-                            .service(handlers::dictionary::delete_entry)
-                            .service(handlers::dictionary::verify_entry),
+                            .service(
+                                web::scope("")
+                                    .wrap(AuthMiddleware) // Protected CUD endpoints require auth
+                                    .service(handlers::dictionary::create_entry)
+                                    .service(handlers::dictionary::update_entry)
+                                    .service(handlers::dictionary::delete_entry)
+                                    .service(handlers::dictionary::verify_entry),
+                            ),
                     )
                     
                     // Translation endpoints
@@ -298,13 +292,10 @@ async fn run(
                     // Role management endpoints
                     .service(
                         web::scope("/roles")
-                            .service(handlers::roles::list_roles) // Public endpoint
-                            .service(
-                                web::scope("")
-                                    .wrap(AuthMiddleware) // Protected endpoints require auth
-                                    .service(handlers::roles::list_assignable_roles)
-                                    .service(handlers::roles::list_manageable_roles),
-                            ),
+                            .wrap(AuthMiddleware) // All role endpoints require auth
+                            .service(handlers::roles::list_roles)
+                            .service(handlers::roles::list_assignable_roles)
+                            .service(handlers::roles::list_manageable_roles),
                     ),
             )
     })

@@ -7,6 +7,7 @@ use crate::{
     dto::{
         analytics::{CreateAnalyticsRequest, UpdateAnalyticsRequest},
         auth::{LoginRequest, RefreshTokenRequest, RegisterRequest},
+        book::{BookResponse, CreateBookRequest, UpdateBookRequest, BookQueryParams},
         contribution::{CreateContributionRequest, UpdateContributionRequest},
         dictionary::{
             CreateDictionaryEntryRequest, SearchDictionaryRequest, SearchType,
@@ -67,6 +68,12 @@ use crate::{
         crate::handlers::analytics::get_word_stats,
         crate::handlers::alphabet::list_alphabets,
         crate::handlers::alphabet::convert_text,
+        crate::handlers::book::create_book,
+        crate::handlers::book::get_book,
+        crate::handlers::book::list_books,
+        crate::handlers::book::update_book,
+        crate::handlers::book::delete_book,
+        crate::handlers::book::get_my_books,
         crate::handlers::roles::list_roles,
     ),
     components(
@@ -101,6 +108,12 @@ use crate::{
             CreateAnalyticsRequest,
             UpdateAnalyticsRequest,
 
+            // Book DTOs
+            CreateBookRequest,
+            UpdateBookRequest,
+            BookQueryParams,
+            BookResponse,
+
             // Alphabet DTOs (read-only)
             PnarCharacter,
             ConvertTextRequest,
@@ -134,6 +147,7 @@ use crate::{
         (name = "health", description = "Health check endpoints"),
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User management endpoints"),
+        (name = "books", description = "Book management and discovery endpoints"),
         (name = "dictionary", description = "Dictionary management endpoints"),
         (name = "translations", description = "Translation request endpoints"),
         (name = "contributions", description = "User contribution endpoints"),

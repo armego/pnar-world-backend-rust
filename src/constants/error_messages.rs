@@ -29,7 +29,6 @@ pub const MISSING_AUTH_TOKEN: &str = "Missing authentication token";
 pub const SUPERADMIN_ACCESS_REQUIRED: &str = "Superadmin access required";
 pub const ADMIN_ACCESS_REQUIRED: &str = "Admin access required";
 pub const MODERATOR_ACCESS_REQUIRED: &str = "Moderator access required";
-pub const TRANSLATOR_ACCESS_REQUIRED: &str = "Translator access required";
 pub const CONTRIBUTOR_ACCESS_REQUIRED: &str = "Contributor access required";
 pub const ROLE_ACCESS_REQUIRED: &str = "Insufficient role permissions for this operation";
 

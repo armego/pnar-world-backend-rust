@@ -36,9 +36,9 @@ pub async fn create_book(
     request: web::Json<CreateBookRequest>,
     auth_user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    if !authorization::has_minimum_role_level(&auth_user.role, "contributor") {
+    if !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
-            "Book creation requires contributor privileges",
+            "Book creation requires admin privileges",
         ));
     }
 

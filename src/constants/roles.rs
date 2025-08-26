@@ -5,7 +5,6 @@ use utoipa::ToSchema;
 pub const SUPERADMIN: &str = "superadmin";
 pub const ADMIN: &str = "admin";
 pub const MODERATOR: &str = "moderator";
-pub const TRANSLATOR: &str = "translator";
 pub const CONTRIBUTOR: &str = "contributor";
 pub const USER: &str = "user";
 
@@ -37,8 +36,6 @@ pub enum UserRole {
     Admin,
     #[serde(rename = "moderator")]
     Moderator,
-    #[serde(rename = "translator")]
-    Translator,
     #[serde(rename = "contributor")]
     Contributor,
     #[serde(rename = "user")]
@@ -46,7 +43,7 @@ pub enum UserRole {
 }
 
 /// Fixed application roles with their permissions
-pub const APPLICATION_ROLES: [RoleInfo; 6] = [
+pub const APPLICATION_ROLES: [RoleInfo; 5] = [
     RoleInfo {
         role_id: SUPERADMIN,
         display_name: "Super Administrator",
@@ -75,28 +72,19 @@ pub const APPLICATION_ROLES: [RoleInfo; 6] = [
         can_manage_translations: true,
     },
     RoleInfo {
-        role_id: TRANSLATOR,
-        display_name: "Translator",
-        description: "Create and manage own translations",
+        role_id: CONTRIBUTOR,
+        display_name: "Contributor",
+        description: "Create and manage own translations and contributions",
         hierarchy_level: 3,
         can_manage_users: false,
         can_manage_dictionary: false,
         can_manage_translations: true,
     },
     RoleInfo {
-        role_id: CONTRIBUTOR,
-        display_name: "Contributor",
-        description: "Submit translation suggestions and contributions",
-        hierarchy_level: 2,
-        can_manage_users: false,
-        can_manage_dictionary: false,
-        can_manage_translations: false,
-    },
-    RoleInfo {
         role_id: USER,
         display_name: "User",
         description: "Basic user with read access",
-        hierarchy_level: 1,
+        hierarchy_level: 2,
         can_manage_users: false,
         can_manage_dictionary: false,
         can_manage_translations: false,

@@ -85,7 +85,6 @@ pub fn get_assignable_roles(user_role: &str) -> Vec<&'static str> {
             roles::SUPERADMIN,
             roles::ADMIN,
             roles::MODERATOR,
-            roles::TRANSLATOR,
             roles::CONTRIBUTOR,
             roles::USER,
         ],
@@ -135,10 +134,9 @@ pub fn can_access_user_data(user_role: &str, user_id: Uuid, target_user_id: Uuid
 /// Get role hierarchy level (higher number = more permissions)
 pub fn get_role_level(role: &str) -> u8 {
     match role {
-        roles::SUPERADMIN => 6,
-        roles::ADMIN => 5,
-        roles::MODERATOR => 4,
-        roles::TRANSLATOR => 3,
+        roles::SUPERADMIN => 5,
+        roles::ADMIN => 4,
+        roles::MODERATOR => 3,
         roles::CONTRIBUTOR => 2,
         roles::USER => 1,
         _ => 0, // Unknown role gets lowest access
