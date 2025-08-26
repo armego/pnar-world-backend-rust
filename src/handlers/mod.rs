@@ -5,6 +5,7 @@ pub mod book;
 pub mod contribution;
 pub mod dictionary;
 pub mod health;
+pub mod notification;
 pub mod roles;
 pub mod translation;
 pub mod user;

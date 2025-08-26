@@ -18,7 +18,6 @@ use actix_web::{
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing::{info, warn};
-use tracing_actix_web::TracingLogger;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -94,38 +93,44 @@ async fn run(
 
     let server = HttpServer::new(move || {
         let cors = configure_cors(&settings_data.application.cors, settings_data.is_production());
-        let openapi = ApiDoc::openapi();
-
-        App::new()
+        let is_dev = !settings_data.is_production();
+        
+        let mut app = App::new()
             .app_data(app_state.clone())
             .app_data(settings_data.clone())
             .app_data(pool_data.clone())
             .app_data(
                 web::PayloadConfig::new(settings_data.application.max_request_size)
             )
-            .wrap(cors)
-            .wrap(SecurityHeaders)
-            .wrap(RequestId)
-            .wrap(TracingLogger::default())
-            .wrap(Logger::default())
             .wrap(NormalizePath::trim())
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-doc/openapi.json", openapi.clone())
-                    .config(utoipa_swagger_ui::Config::default()
-                        .display_request_duration(true)
-                        .try_it_out_enabled(true)
-                    )
-            )
-            .route(
-                "/docs",
-                web::get().to(|| async {
-                    actix_web::HttpResponse::Found()
-                        .append_header(("Location", "/swagger-ui/index.html"))
-                        .finish()
-                }),
-            )
-            .service(
+            .wrap(RequestId)
+            .wrap(SecurityHeaders)
+            .wrap(cors)
+            .wrap(Logger::default()); // Keep logging for now
+
+        // Add OpenAPI/Swagger only in development
+        if is_dev {
+            let openapi = ApiDoc::openapi();
+            app = app
+                .service(
+                    SwaggerUi::new("/swagger-ui/{_:.*}")
+                        .url("/api-doc/openapi.json", openapi.clone())
+                        .config(utoipa_swagger_ui::Config::default()
+                            .display_request_duration(true)
+                            .try_it_out_enabled(true)
+                        )
+                )
+                .route(
+                    "/docs",
+                    web::get().to(|| async {
+                        actix_web::HttpResponse::Found()
+                            .append_header(("Location", "/swagger-ui/index.html"))
+                            .finish()
+                    }),
+                );
+        }
+
+        app.service(
                 web::scope("/api/v1")
                     // Health and monitoring endpoints (no auth required)
                     .service(handlers::health::health_check)
@@ -188,84 +193,56 @@ async fn run(
                     // Translation endpoints
                     .service(
                         web::scope("/translations")
+                            // Public read endpoints (no auth required)
+                            .service(handlers::translation::list_translations)
+                            .service(handlers::translation::get_translation)
+                    )
+                    // Protected translation endpoints require auth
+                    .service(
+                        web::scope("/translations")
                             .wrap(AuthMiddleware)
-                            .route(
-                                "",
-                                web::post().to(handlers::translation::create_translation),
-                            )
-                            .route("", web::get().to(handlers::translation::list_translations))
-                            .route(
-                                "/{id}",
-                                web::get().to(handlers::translation::get_translation),
-                            )
-                            .route(
-                                "/{id}",
-                                web::put().to(handlers::translation::update_translation),
-                            )
-                            .route(
-                                "/{id}",
-                                web::delete().to(handlers::translation::delete_translation),
-                            ),
+                            .service(handlers::translation::create_translation)
+                            .service(handlers::translation::update_translation)
+                            .service(handlers::translation::delete_translation)
                     )
                     
                     // Contribution endpoints
                     .service(
                         web::scope("/contributions")
+                            // Public read endpoints (no auth required)
+                            .service(handlers::contribution::list_contributions)
+                            .service(handlers::contribution::get_contribution)
+                    )
+                    // Protected contribution endpoints require auth
+                    .service(
+                        web::scope("/contributions")
                             .wrap(AuthMiddleware)
-                            .route(
-                                "",
-                                web::post().to(handlers::contribution::create_contribution),
-                            )
-                            .route(
-                                "",
-                                web::get().to(handlers::contribution::list_contributions),
-                            )
-                            .route(
-                                "/{id}",
-                                web::get().to(handlers::contribution::get_contribution),
-                            )
-                            .route(
-                                "/{id}",
-                                web::put().to(handlers::contribution::update_contribution),
-                            )
-                            .route(
-                                "/{id}",
-                                web::delete().to(handlers::contribution::delete_contribution),
-                            ),
+                            .service(handlers::contribution::create_contribution)
+                            .service(handlers::contribution::update_contribution)
+                            .service(handlers::contribution::delete_contribution)
                     )
                     
-                    // Analytics endpoints
+                    // Analytics endpoints - Public
                     .service(
                         web::scope("/analytics")
                             .route(
                                 "/anonymous",
                                 web::post().to(handlers::analytics::create_anonymous_analytics),
                             )
-                            .service(
-                                web::scope("")
-                                    .wrap(AuthMiddleware)
-                                    .route(
-                                        "",
-                                        web::post().to(handlers::analytics::create_analytics),
-                                    )
-                                    .route("", web::get().to(handlers::analytics::list_analytics))
-                                    .route(
-                                        "/{id}",
-                                        web::get().to(handlers::analytics::get_analytics),
-                                    )
-                                    .route(
-                                        "/{id}",
-                                        web::put().to(handlers::analytics::update_analytics),
-                                    )
-                                    .route(
-                                        "/{id}",
-                                        web::delete().to(handlers::analytics::delete_analytics),
-                                    )
-                                    .route(
-                                        "/words/{word_id}/stats",
-                                        web::get().to(handlers::analytics::get_word_stats),
-                                    ),
+                            .route("", web::get().to(handlers::analytics::list_analytics))
+                            .route("/{id}", web::get().to(handlers::analytics::get_analytics))
+                            .route(
+                                "/words/{word_id}/stats",
+                                web::get().to(handlers::analytics::get_word_stats),
                             ),
+                    )
+                    // Analytics endpoints - Protected
+                    .service(
+                        web::scope("/analytics")
+                            .wrap(AuthMiddleware)
+                            .route("", web::post().to(handlers::analytics::create_analytics))
+                            .route("/{id}", web::put().to(handlers::analytics::update_analytics))
+                            .route("/{id}", web::delete().to(handlers::analytics::delete_analytics)),
                     )
                     
                     // Book management endpoints
@@ -296,6 +273,24 @@ async fn run(
                             .service(handlers::roles::list_roles)
                             .service(handlers::roles::list_assignable_roles)
                             .service(handlers::roles::list_manageable_roles),
+                    )
+                    // Notification endpoints
+                    .service(
+                        web::scope("/notifications")
+                            // Public read endpoints (no auth required)
+                            .service(handlers::notification::get_notification)
+                            .service(handlers::notification::list_notifications)
+                            .service(handlers::notification::get_unread_count)
+                    )
+                    // Protected notification endpoints require auth
+                    .service(
+                        web::scope("/notifications")
+                            .wrap(AuthMiddleware)
+                            .service(handlers::notification::create_notification)
+                            .service(handlers::notification::update_notification)
+                            .service(handlers::notification::mark_notification_read)
+                            .service(handlers::notification::delete_notification)
+                            .service(handlers::notification::mark_all_notifications_read)
                     ),
             )
     })
@@ -307,17 +302,32 @@ async fn run(
 }
 
 fn configure_cors(cors_settings: &crate::config::CorsSettings, is_production: bool) -> Cors {
+    if !is_production {
+        // In development, allow any origin, method, and header for easier testing
+        warn!("CORS is disabled for development environment");
+        return Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .supports_credentials()
+            .max_age(3600);
+    }
+
     let mut cors = Cors::default();
 
     // Configure origins
-    if cors_settings.allowed_origins.contains(&"*".to_string()) && !is_production {
-        warn!("Wildcard CORS origin detected in non-production environment");
+    if cors_settings.allowed_origins.contains(&"*".to_string()) {
+        // Production should not use wildcard, but if it's there, respect it with a warning
+        warn!("Wildcard CORS origin detected in production environment. This is a security risk.");
         cors = cors.allow_any_origin();
     } else {
         for origin in &cors_settings.allowed_origins {
             cors = cors.allowed_origin(origin);
         }
     }
+    
+    // In production, be more restrictive
+    cors = cors.supports_credentials();
 
     // Configure methods
     let method_strs: Vec<&str> = cors_settings
@@ -332,14 +342,11 @@ fn configure_cors(cors_settings: &crate::config::CorsSettings, is_production: bo
         cors = cors.allowed_header(header.as_str());
     }
 
-    // Configure credentials
-    if cors_settings.allow_credentials {
-        cors = cors.supports_credentials();
-    }
-
-    // Configure max age
+    // Configure max age - longer cache in production
     if let Some(max_age) = cors_settings.max_age {
         cors = cors.max_age(max_age);
+    } else {
+        cors = cors.max_age(86400); // 24 hours default for production
     }
 
     cors

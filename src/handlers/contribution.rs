@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{delete, get, post, put, web, HttpResponse, Result};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
@@ -20,7 +20,7 @@ pub struct ContributionQueryParams {
 /// Create a new contribution
 #[utoipa::path(
     post,
-    path = "/api/contributions",
+    path = "/api/v1/contributions",
     tag = "contributions",
     request_body = CreateContributionRequest,
     responses(
@@ -30,9 +30,10 @@ pub struct ContributionQueryParams {
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
+#[post("")]
 pub async fn create_contribution(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,
@@ -45,10 +46,10 @@ pub async fn create_contribution(
     Ok(HttpResponse::Created().json(contribution))
 }
 
-/// Get a contribution by ID
+/// Get contribution by ID
 #[utoipa::path(
     get,
-    path = "/api/contributions/{id}",
+    path = "/api/v1/contributions/{id}",
     tag = "contributions",
     params(
         ("id" = Uuid, Path, description = "Contribution ID")
@@ -56,20 +57,16 @@ pub async fn create_contribution(
     responses(
         (status = 200, description = "Contribution retrieved successfully", body = ContributionResponse),
         (status = 404, description = "Contribution not found"),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
     )
 )]
+#[get("/{id}")]
 pub async fn get_contribution(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let contribution =
-        contribution_service::get_contribution(pool.get_ref(), path.into_inner(), user.user_id)
+        contribution_service::get_contribution(pool.get_ref(), path.into_inner(), None)
             .await?;
 
     Ok(HttpResponse::Ok().json(contribution))
@@ -78,32 +75,24 @@ pub async fn get_contribution(
 /// List contributions (user's own or all if admin)
 #[utoipa::path(
     get,
-    path = "/api/contributions",
+    path = "/api/v1/contributions",
     tag = "contributions",
     params(ContributionQueryParams),
     responses(
         (status = 200, description = "Contributions retrieved successfully", body = ContributionPaginatedResponse),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
     )
 )]
+#[get("")]
 pub async fn list_contributions(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     query: web::Query<ContributionQueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let page = query.page.unwrap_or(1);
     let per_page = query.per_page.unwrap_or(20);
 
-    // Only allow viewing all contributions if user is admin
-    let user_id = if query.all.unwrap_or(false) && user.role == "admin" {
-        None
-    } else {
-        Some(user.user_id)
-    };
+    // For public access, show all contributions
+    let user_id = None;
 
     let contributions =
         contribution_service::list_contributions(pool.get_ref(), user_id, page, per_page).await?;
@@ -114,7 +103,7 @@ pub async fn list_contributions(
 /// Update a contribution
 #[utoipa::path(
     put,
-    path = "/api/contributions/{id}",
+    path = "/api/v1/contributions/{id}",
     tag = "contributions",
     params(
         ("id" = Uuid, Path, description = "Contribution ID")
@@ -127,9 +116,10 @@ pub async fn list_contributions(
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
+#[put("/{id}")]
 pub async fn update_contribution(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,
@@ -150,7 +140,7 @@ pub async fn update_contribution(
 /// Delete a contribution
 #[utoipa::path(
     delete,
-    path = "/api/contributions/{id}",
+    path = "/api/v1/contributions/{id}",
     tag = "contributions",
     params(
         ("id" = Uuid, Path, description = "Contribution ID")
@@ -162,9 +152,10 @@ pub async fn update_contribution(
         (status = 500, description = "Internal server error")
     ),
     security(
-        ("Bearer" = [])
+        ("bearer_auth" = [])
     )
 )]
+#[delete("/{id}")]
 pub async fn delete_contribution(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,

@@ -75,54 +75,47 @@ pub async fn create_translation_request(
 pub async fn get_translation_request(
     pool: &PgPool,
     request_id: Uuid,
-    user_id: Uuid,
+    user_id: Option<Uuid>,
     user_role: &str,
 ) -> Result<TranslationResponse, AppError> {
-    // Build query based on user role
-    let (query, use_user_filter) = match user_role {
-        roles::SUPERADMIN | roles::ADMIN => {
-            // Admins and superadmins can access any translation
-            (r#"
-            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-                   u.email as user_email, reviewer.email as reviewed_by_email
-            FROM translation_requests tr
-            LEFT JOIN users u ON tr.user_id = u.id
-            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
-            WHERE tr.id = $1
-            "#, false)
-        },
-        _ => {
-            // Regular users can only access their own translations
-            (r#"
-            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-                   u.email as user_email, reviewer.email as reviewed_by_email
-            FROM translation_requests tr
-            LEFT JOIN users u ON tr.user_id = u.id
-            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
-            WHERE tr.id = $1 AND tr.user_id = $2
-            "#, true)
-        }
-    };
-
-    let record = if use_user_filter {
-        sqlx::query(query)
-            .bind(request_id)
-            .bind(user_id)
-            .fetch_optional(pool)
-            .await?
+    // Build query based on user role and user_id
+    let (query, bind_user_id) = if user_id.is_none() || user_role == roles::SUPERADMIN || user_role == roles::ADMIN {
+        // Public access or admin access - can see any translation
+        (r#"
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as user_email, reviewer.email as reviewed_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+        WHERE tr.id = $1
+        "#, false)
     } else {
-        sqlx::query(query)
-            .bind(request_id)
-            .fetch_optional(pool)
-            .await?
+        // User-specific access - can only see their own translations
+        (r#"
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as user_email, reviewer.email as reviewed_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+        WHERE tr.id = $1 AND tr.user_id = $2
+        "#, true)
     };
 
-    let record =
-        record.ok_or_else(|| AppError::NotFound(error_messages::TRANSLATION_REQUEST_NOT_FOUND))?;
+    let mut query_builder = sqlx::query(query).bind(request_id);
+    if bind_user_id {
+        if let Some(uid) = user_id {
+            query_builder = query_builder.bind(uid);
+        }
+    }
+
+    let record = query_builder
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(error_messages::TRANSLATION_NOT_FOUND))?;
 
     Ok(TranslationResponse {
         id: record.get("id"),
@@ -147,60 +140,51 @@ pub async fn get_translation_request(
 
 pub async fn list_translation_requests(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: Option<Uuid>,
     user_role: &str,
     page: i64,
     per_page: i64,
 ) -> Result<Vec<TranslationResponse>, AppError> {
     let offset = (page - 1) * per_page;
 
-    // Build query based on user role
-    let (query, use_user_filter) = match user_role {
-        roles::SUPERADMIN | roles::ADMIN => {
-            // Admins and superadmins can see all translations
-            (r#"
-            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-                   u.email as user_email, reviewer.email as reviewed_by_email
-            FROM translation_requests tr
-            LEFT JOIN users u ON tr.user_id = u.id
-            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
-            ORDER BY tr.created_at DESC
-            LIMIT $1 OFFSET $2
-            "#, false)
-        },
-        _ => {
-            // Regular users can only see their own translations
-            (r#"
-            SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
-                   tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
-                   tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
-                   u.email as user_email, reviewer.email as reviewed_by_email
-            FROM translation_requests tr
-            LEFT JOIN users u ON tr.user_id = u.id
-            LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
-            WHERE tr.user_id = $1
-            ORDER BY tr.created_at DESC
-            LIMIT $2 OFFSET $3
-            "#, true)
-        }
+    // Build query based on user role and user_id
+    let (query, bind_user_id) = if user_id.is_none() || user_role == roles::SUPERADMIN || user_role == roles::ADMIN {
+        // Public access or admin access - can see all translations
+        (r#"
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as user_email, reviewer.email as reviewed_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+        ORDER BY tr.created_at DESC
+        LIMIT $1 OFFSET $2
+        "#, false)
+    } else {
+        // User-specific access - can only see their own translations
+        (r#"
+        SELECT tr.id, tr.user_id, tr.source_text, tr.source_language, tr.target_language,
+               tr.translated_text, tr.status, tr.translation_type, tr.confidence_score,
+               tr.reviewed, tr.reviewed_by, tr.reviewed_at, tr.metadata, tr.created_at, tr.updated_at,
+               u.email as user_email, reviewer.email as reviewed_by_email
+        FROM translation_requests tr
+        LEFT JOIN users u ON tr.user_id = u.id
+        LEFT JOIN users reviewer ON tr.reviewed_by = reviewer.id
+        WHERE tr.user_id = $3
+        ORDER BY tr.created_at DESC
+        LIMIT $1 OFFSET $2
+        "#, true)
     };
 
-    let records = if use_user_filter {
-        sqlx::query(query)
-            .bind(user_id)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-    } else {
-        sqlx::query(query)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-    };
+    let mut query_builder = sqlx::query(query).bind(per_page).bind(offset);
+    if bind_user_id {
+        if let Some(uid) = user_id {
+            query_builder = query_builder.bind(uid);
+        }
+    }
+
+    let records = query_builder.fetch_all(pool).await?;
 
     Ok(records
         .into_iter()

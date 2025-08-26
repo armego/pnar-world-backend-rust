@@ -60,21 +60,38 @@ pub async fn create_contribution(
 pub async fn get_contribution(
     pool: &PgPool,
     contribution_id: Uuid,
-    user_id: Uuid,
+    user_id: Option<Uuid>,
 ) -> Result<ContributionResponse, AppError> {
-    let record = sqlx::query(
-        r#"
-        SELECT id, user_id, contribution_type, entity_type, entity_id, action,
-               previous_value, new_value, points_awarded, status, reviewed_by, reviewed_at,
-               created_at
-        FROM user_contributions 
-        WHERE id = $1 AND user_id = $2
-        "#,
-    )
-    .bind(contribution_id)
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await?;
+    let record = if let Some(uid) = user_id {
+        // User-specific query (can only see their own contributions)
+        sqlx::query(
+            r#"
+            SELECT id, user_id, contribution_type, entity_type, entity_id, action,
+                   previous_value, new_value, points_awarded, status, reviewed_by, reviewed_at,
+                   created_at
+            FROM user_contributions 
+            WHERE id = $1 AND user_id = $2
+            "#,
+        )
+        .bind(contribution_id)
+        .bind(uid)
+        .fetch_optional(pool)
+        .await?
+    } else {
+        // Public query (can see any contribution)
+        sqlx::query(
+            r#"
+            SELECT id, user_id, contribution_type, entity_type, entity_id, action,
+                   previous_value, new_value, points_awarded, status, reviewed_by, reviewed_at,
+                   created_at
+            FROM user_contributions 
+            WHERE id = $1
+            "#,
+        )
+        .bind(contribution_id)
+        .fetch_optional(pool)
+        .await?
+    };
 
     let record = record.ok_or_else(|| AppError::NotFound(error_messages::CONTRIBUTION_NOT_FOUND))?;
 

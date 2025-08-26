@@ -1,7 +1,8 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{delete, get, post, put, web, HttpResponse, Result};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::{
     dto::{CreateTranslationRequest, UpdateTranslationRequest},
@@ -36,6 +37,7 @@ pub struct TranslationQueryParams {
         ("bearer_auth" = [])
     )
 )]
+#[post("")]
 pub async fn create_translation(
     pool: web::Data<sqlx::PgPool>,
     user: TranslationManager, // Require contributor role or higher
@@ -51,7 +53,7 @@ pub async fn create_translation(
     Ok(HttpResponse::Created().json(translation))
 }
 
-/// Get a translation request by ID
+/// Get translation request by ID
 #[utoipa::path(
     get,
     path = "/api/v1/translations/{id}",
@@ -62,30 +64,26 @@ pub async fn create_translation(
     responses(
         (status = 200, description = "Translation request retrieved successfully", body = TranslationResponse),
         (status = 404, description = "Translation request not found"),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("bearer_auth" = [])
     )
 )]
+#[get("/{id}")]
 pub async fn get_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let translation = translation_service::get_translation_request(
         pool.get_ref(),
         path.into_inner(),
-        user.user_id,
-        &user.role,
+        None, // No user_id for public access
+        "user", // Default role for public access
     )
     .await?;
 
     Ok(HttpResponse::Ok().json(translation))
 }
 
-/// List translation requests for the authenticated user
+/// List translation requests with pagination
 #[utoipa::path(
     get,
     path = "/api/v1/translations",
@@ -93,16 +91,12 @@ pub async fn get_translation(
     params(TranslationQueryParams),
     responses(
         (status = 200, description = "Translation requests retrieved successfully", body = TranslationPaginatedResponse),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("bearer_auth" = [])
     )
 )]
+#[get("")]
 pub async fn list_translations(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     query: web::Query<TranslationQueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let page = query.page.unwrap_or(1);
@@ -110,8 +104,8 @@ pub async fn list_translations(
 
     let translations = translation_service::list_translation_requests(
         pool.get_ref(),
-        user.user_id,
-        &user.role,
+        None, // No user_id for public access
+        "user", // Default role for public access
         page,
         per_page,
     )
@@ -140,6 +134,7 @@ pub async fn list_translations(
         ("bearer_auth" = [])
     )
 )]
+#[put("/{id}")]
 pub async fn update_translation(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,
@@ -148,11 +143,13 @@ pub async fn update_translation(
 ) -> Result<HttpResponse, AppError> {
     let translation_id = path.into_inner();
     
+    req.validate()?;
+    
     // Get translation to check ownership
     let existing_translation = translation_service::get_translation_request(
         pool.get_ref(),
         translation_id,
-        user.user_id,
+        Some(user.user_id),
         &user.role,
     )
     .await?;
@@ -190,6 +187,7 @@ pub async fn update_translation(
         ("bearer_auth" = [])
     )
 )]
+#[delete("/{id}")]
 pub async fn delete_translation(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,
@@ -201,7 +199,7 @@ pub async fn delete_translation(
     let existing_translation = translation_service::get_translation_request(
         pool.get_ref(),
         translation_id,
-        user.user_id,
+        Some(user.user_id),
         &user.role,
     )
     .await?;

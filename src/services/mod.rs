@@ -4,5 +4,6 @@ pub mod auth_service;
 pub mod book_service;
 pub mod contribution_service;
 pub mod dictionary_service;
+pub mod notification_service;
 pub mod translation_service;
 pub mod user_service;

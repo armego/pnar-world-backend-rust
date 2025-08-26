@@ -3,10 +3,12 @@ use serde::Serialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-/// Standard API response wrapper
+/// Standard API response wrapper for single items
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ApiResponse<T> {
     pub data: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<PaginationInfo>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
@@ -15,6 +17,15 @@ impl<T> ApiResponse<T> {
     pub fn new(data: T) -> Self {
         Self {
             data,
+            pagination: None,
+            timestamp: Utc::now(),
+        }
+    }
+    
+    pub fn with_pagination(data: T, pagination: PaginationInfo) -> Self {
+        Self {
+            data,
+            pagination: Some(pagination),
             timestamp: Utc::now(),
         }
     }
@@ -24,6 +35,8 @@ impl<T> ApiResponse<T> {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SuccessResponse {
     pub data: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<PaginationInfo>,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub timestamp: DateTime<Utc>,
 }
@@ -32,6 +45,7 @@ impl SuccessResponse {
     pub fn new(message: String) -> Self {
         Self {
             data: message,
+            pagination: None,
             timestamp: Utc::now(),
         }
     }
@@ -246,6 +260,15 @@ pub struct BookPaginatedResponse {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Notification paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct NotificationPaginatedResponse {
+    pub data: Vec<crate::dto::notification::NotificationResponse>,
+    pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub timestamp: DateTime<Utc>,
+}
+
 // Macro to generate paginated response implementations
 macro_rules! impl_paginated_response {
     ($response_type:ty, $data_type:ty) => {
@@ -274,6 +297,7 @@ impl_paginated_response!(TranslationPaginatedResponse, TranslationResponse);
 impl_paginated_response!(ContributionPaginatedResponse, ContributionResponse);
 impl_paginated_response!(AnalyticsPaginatedResponse, AnalyticsResponse);
 impl_paginated_response!(BookPaginatedResponse, crate::dto::book::BookResponse);
+impl_paginated_response!(NotificationPaginatedResponse, crate::dto::notification::NotificationResponse);
 
 /// Health check response
 #[derive(Debug, Serialize, ToSchema)]

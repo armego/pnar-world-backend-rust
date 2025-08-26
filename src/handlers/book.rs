@@ -109,7 +109,7 @@ pub async fn list_books(
         .unwrap_or(false);
 
     let books = book_service::list_books(&pool, query.into_inner(), include_private).await?;
-    Ok(HttpResponse::Ok().json(ApiResponse::new(books)))
+    Ok(HttpResponse::Ok().json(books))
 }
 
 /// Update a book
@@ -228,5 +228,5 @@ pub async fn get_my_books(
         books.pagination.total,
     );
 
-    Ok(HttpResponse::Ok().json(ApiResponse::new(filtered_response)))
+    Ok(HttpResponse::Ok().json(filtered_response))
 }

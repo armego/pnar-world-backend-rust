@@ -91,155 +91,52 @@ pub async fn list_analytics_records(
 ) -> Result<Vec<AnalyticsResponse>, AppError> {
     let offset = (page - 1) * per_page;
 
-    // Use separate queries based on parameters to avoid complex dynamic binding
-    let records = match (user_id, word_id, event_type) {
-        (Some(uid), Some(wid), Some(et)) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE user_id = $1 AND word_id = $2 AND event_type = $3
-                ORDER BY timestamp DESC
-                LIMIT $4 OFFSET $5
-                "#,
-            )
-            .bind(uid)
-            .bind(wid)
-            .bind(et)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
+    let mut query_builder = sqlx::QueryBuilder::new(
+        r#"
+        SELECT 
+            w.id, w.user_id, u.email as user_email, w.word_id, w.event_type, 
+            w.timestamp, w.session_id, w.metadata, w.created_at, w.updated_at
+        FROM word_usage_analytics w
+        LEFT JOIN users u ON w.user_id = u.id
+        "#,
+    );
+
+    let has_user_id = user_id.is_some();
+    let has_word_id = word_id.is_some();
+    let has_event_type = event_type.is_some();
+
+    if has_user_id || has_word_id || has_event_type {
+        query_builder.push(" WHERE ");
+        let mut separated = query_builder.separated(" AND ");
+        if let Some(uid) = user_id {
+            separated.push("w.user_id = ");
+            separated.push_bind(uid);
         }
-        (Some(uid), Some(wid), None) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE user_id = $1 AND word_id = $2
-                ORDER BY timestamp DESC
-                LIMIT $3 OFFSET $4
-                "#,
-            )
-            .bind(uid)
-            .bind(wid)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
+        if let Some(wid) = word_id {
+            separated.push("w.word_id = ");
+            separated.push_bind(wid);
         }
-        (Some(uid), None, Some(et)) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE user_id = $1 AND event_type = $2
-                ORDER BY timestamp DESC
-                LIMIT $3 OFFSET $4
-                "#,
-            )
-            .bind(uid)
-            .bind(et)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
+        if let Some(et) = event_type {
+            separated.push("w.event_type = ");
+            separated.push_bind(et);
         }
-        (Some(uid), None, None) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE user_id = $1
-                ORDER BY timestamp DESC
-                LIMIT $2 OFFSET $3
-                "#,
-            )
-            .bind(uid)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-        }
-        (None, Some(wid), Some(et)) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE word_id = $1 AND event_type = $2
-                ORDER BY timestamp DESC
-                LIMIT $3 OFFSET $4
-                "#,
-            )
-            .bind(wid)
-            .bind(et)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-        }
-        (None, Some(wid), None) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE word_id = $1
-                ORDER BY timestamp DESC
-                LIMIT $2 OFFSET $3
-                "#,
-            )
-            .bind(wid)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-        }
-        (None, None, Some(et)) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                WHERE event_type = $1
-                ORDER BY timestamp DESC
-                LIMIT $2 OFFSET $3
-                "#,
-            )
-            .bind(et)
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-        }
-        (None, None, None) => {
-            sqlx::query(
-                r#"
-                SELECT id, user_id, word_id, event_type, timestamp, session_id,
-                       metadata, created_at, updated_at
-                FROM word_usage_analytics 
-                ORDER BY timestamp DESC
-                LIMIT $1 OFFSET $2
-                "#,
-            )
-            .bind(per_page)
-            .bind(offset)
-            .fetch_all(pool)
-            .await?
-        }
-    };
+    }
+
+    query_builder.push(" ORDER BY w.timestamp DESC LIMIT ");
+    query_builder.push_bind(per_page);
+    query_builder.push(" OFFSET ");
+    query_builder.push_bind(offset);
+
+    let query = query_builder.build();
+
+    let records = query.fetch_all(pool).await?;
 
     Ok(records
         .into_iter()
         .map(|record| AnalyticsResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
-            user_email: None, // For list, we don't join with users table by default
+            user_email: record.get("user_email"),
             word_id: record.get("word_id"),
             event_type: record.get("event_type"),
             timestamp: record.get("timestamp"),

@@ -7,7 +7,7 @@ use crate::{
     },
     error::AppError,
     middleware::{
-        auth::{AuthenticatedUser, ModeratorUser},
+        auth::ModeratorUser,
         hierarchy::ManagerUser,
     },
     services::dictionary_service,
@@ -59,13 +59,11 @@ pub async fn create_entry(
     get,
     path = "/api/v1/dictionary/{id}",
     tag = "dictionary",
-    security(("bearer_auth" = [])),
     params(
         ("id" = Uuid, Path, description = "Dictionary entry ID")
     ),
     responses(
         (status = 200, description = "Dictionary entry retrieved successfully", body = DictionaryEntryResponse),
-        (status = 401, description = "Unauthorized"),
         (status = 404, description = "Dictionary entry not found")
     )
 )]
@@ -73,7 +71,6 @@ pub async fn create_entry(
 pub async fn get_entry(
     pool: web::Data<PgPool>,
     path: web::Path<Uuid>,
-    user: AuthenticatedUser,
     req: actix_web::HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     let entry_id = path.into_inner();
@@ -88,7 +85,7 @@ pub async fn get_entry(
     let entry = dictionary_service::get_entry(
         &pool, 
         entry_id, 
-        Some(user.user_id),
+        None, // No user_id for anonymous access
         session_id,
         ip_address,
         user_agent,
@@ -102,22 +99,19 @@ pub async fn get_entry(
     get,
     path = "/api/v1/dictionary",
     tag = "dictionary",
-    security(("bearer_auth" = [])),
     params(
         ("page" = Option<i64>, Query, description = "Page number (default: 1)"),
         ("per_page" = Option<i64>, Query, description = "Items per page (default: 20, max: 100)")
     ),
     responses(
         (status = 200, description = "Dictionary entries retrieved successfully", body = DictionaryPaginatedResponse),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized")
+        (status = 400, description = "Bad request")
     )
 )]
 #[get("")]
 pub async fn list_entries(
     pool: web::Data<PgPool>,
     query: web::Query<PaginationQuery>,
-    _user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(20).clamp(1, 100);
@@ -132,12 +126,10 @@ pub async fn list_entries(
     post,
     path = "/api/v1/dictionary/search",
     tag = "dictionary",
-    security(("bearer_auth" = [])),
     request_body = SearchDictionaryRequest,
     responses(
         (status = 200, description = "Search results retrieved successfully", body = DictionaryPaginatedResponse),
         (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
         (status = 422, description = "Validation error")
     )
 )]
@@ -145,7 +137,6 @@ pub async fn list_entries(
 pub async fn search_entries(
     pool: web::Data<PgPool>,
     request: web::Json<SearchDictionaryRequest>,
-    user: AuthenticatedUser,
     req: actix_web::HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     request.validate()?;
@@ -160,7 +151,7 @@ pub async fn search_entries(
     let entries = dictionary_service::search_entries(
         &pool, 
         request.into_inner(),
-        Some(user.user_id),
+        None, // No user_id for anonymous access
         session_id,
         ip_address,
         user_agent,

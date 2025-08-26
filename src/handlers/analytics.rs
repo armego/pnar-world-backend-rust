@@ -27,7 +27,7 @@ pub struct WordStatsParams {
 /// Create a new analytics record
 #[utoipa::path(
     post,
-    path = "/api/analytics",
+    path = "/api/v1/analytics",
     tag = "analytics",
     request_body = CreateAnalyticsRequest,
     responses(
@@ -58,7 +58,7 @@ pub async fn create_analytics(
 /// Create an anonymous analytics record (no authentication required)
 #[utoipa::path(
     post,
-    path = "/api/analytics/anonymous",
+    path = "/api/v1/analytics/anonymous",
     tag = "analytics",
     request_body = CreateAnalyticsRequest,
     responses(
@@ -80,7 +80,7 @@ pub async fn create_anonymous_analytics(
 /// Get an analytics record by ID
 #[utoipa::path(
     get,
-    path = "/api/analytics/{id}",
+    path = "/api/v1/analytics/{id}",
     tag = "analytics",
     params(
         ("id" = Uuid, Path, description = "Analytics record ID")
@@ -88,16 +88,11 @@ pub async fn create_anonymous_analytics(
     responses(
         (status = 200, description = "Analytics record retrieved successfully", body = AnalyticsResponse),
         (status = 404, description = "Analytics record not found"),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
     )
 )]
 pub async fn get_analytics(
     pool: web::Data<sqlx::PgPool>,
-    _user: AuthenticatedUser,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
     let analytics =
@@ -109,32 +104,23 @@ pub async fn get_analytics(
 /// List analytics records with filtering
 #[utoipa::path(
     get,
-    path = "/api/analytics",
+    path = "/api/v1/analytics",
     tag = "analytics",
     params(AnalyticsQueryParams),
     responses(
         (status = 200, description = "Analytics records retrieved successfully", body = AnalyticsPaginatedResponse),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
     )
 )]
 pub async fn list_analytics(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     query: web::Query<AnalyticsQueryParams>,
 ) -> Result<HttpResponse, AppError> {
     let page = query.page.unwrap_or(1);
     let per_page = query.per_page.unwrap_or(20);
 
-    // Only allow viewing all user analytics if user is admin
-    let user_id = if user.role == "admin" {
-        query.user_id
-    } else {
-        Some(user.user_id)
-    };
+    // For public access, allow viewing analytics without user restriction
+    let user_id = query.user_id;
 
     let analytics = analytics_service::list_analytics_records(
         pool.get_ref(),
@@ -152,7 +138,7 @@ pub async fn list_analytics(
 /// Update an analytics record
 #[utoipa::path(
     put,
-    path = "/api/analytics/{id}",
+    path = "/api/v1/analytics/{id}",
     tag = "analytics",
     params(
         ("id" = Uuid, Path, description = "Analytics record ID")
@@ -187,7 +173,7 @@ pub async fn update_analytics(
 /// Delete an analytics record
 #[utoipa::path(
     delete,
-    path = "/api/analytics/{id}",
+    path = "/api/v1/analytics/{id}",
     tag = "analytics",
     params(
         ("id" = Uuid, Path, description = "Analytics record ID")
@@ -215,7 +201,7 @@ pub async fn delete_analytics(
 /// Get word usage statistics
 #[utoipa::path(
     get,
-    path = "/api/analytics/words/{word_id}/stats",
+    path = "/api/v1/analytics/words/{word_id}/stats",
     tag = "analytics",
     params(
         ("word_id" = Uuid, Path, description = "Word ID"),
@@ -224,25 +210,16 @@ pub async fn delete_analytics(
     responses(
         (status = 200, description = "Word usage statistics retrieved successfully", body = serde_json::Value),
         (status = 404, description = "Word not found"),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
     )
 )]
 pub async fn get_word_stats(
     pool: web::Data<sqlx::PgPool>,
-    user: AuthenticatedUser,
     path: web::Path<Uuid>,
     query: web::Query<WordStatsParams>,
 ) -> Result<HttpResponse, AppError> {
-    // Only allow viewing all user stats if user is admin
-    let user_id = if user.role == "admin" {
-        query.user_id
-    } else {
-        Some(user.user_id)
-    };
+    // For public access, allow viewing stats without user restriction
+    let user_id = query.user_id;
 
     let stats =
         analytics_service::get_word_usage_stats(pool.get_ref(), path.into_inner(), user_id).await?;

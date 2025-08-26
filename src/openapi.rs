@@ -75,6 +75,14 @@ use crate::{
         crate::handlers::book::delete_book,
         crate::handlers::book::get_my_books,
         crate::handlers::roles::list_roles,
+        crate::handlers::notification::create_notification,
+        crate::handlers::notification::get_notification,
+        crate::handlers::notification::list_notifications,
+        crate::handlers::notification::update_notification,
+        crate::handlers::notification::mark_notification_read,
+        crate::handlers::notification::delete_notification,
+        crate::handlers::notification::mark_all_notifications_read,
+        crate::handlers::notification::get_unread_count,
     ),
     components(
         schemas(
@@ -113,6 +121,13 @@ use crate::{
             UpdateBookRequest,
             BookQueryParams,
             BookResponse,
+
+            // Notification DTOs
+            crate::dto::notification::CreateNotificationRequest,
+            crate::dto::notification::UpdateNotificationRequest,
+            crate::dto::notification::MarkNotificationReadRequest,
+            crate::dto::notification::NotificationQueryParams,
+            crate::dto::notification::NotificationResponse,
 
             // Alphabet DTOs (read-only)
             PnarCharacter,
@@ -153,7 +168,8 @@ use crate::{
         (name = "contributions", description = "User contribution endpoints"),
         (name = "analytics", description = "Word usage analytics endpoints"),
         (name = "alphabets", description = "Pnar alphabet character mappings"),
-        (name = "roles", description = "User role information and permissions")
+        (name = "roles", description = "User role information and permissions"),
+        (name = "notifications", description = "User notification management endpoints")
     ),
     info(
         title = "Pnar World Dictionary API",
