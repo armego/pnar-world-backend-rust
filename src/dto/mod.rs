@@ -1,6 +1,7 @@
 pub mod alphabet;
 pub mod analytics;
 pub mod auth;
+pub mod book;
 pub mod contribution;
 pub mod dictionary;
 pub mod notes;
@@ -11,6 +12,7 @@ pub mod user;
 pub use alphabet::*;
 pub use analytics::*;
 pub use auth::*;
+pub use book::*;
 pub use contribution::*;
 pub use dictionary::*;
 pub use notes::*;

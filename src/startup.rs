@@ -173,7 +173,8 @@ async fn run(
                                 .service(handlers::user::update_user_password)
                                 .service(handlers::user::delete_user)
                                 .service(handlers::user::award_points)
-                                .service(handlers::user::verify_email),
+                                .service(handlers::user::verify_email)
+                                .service(handlers::user::update_user_role),
                         ),
                     )
                     
@@ -273,15 +274,37 @@ async fn run(
                             ),
                     )
                     
+                    // Book management endpoints
+                    .service(
+                        web::scope("/books")
+                            .service(handlers::book::list_books) // Public endpoint for public books
+                            .service(handlers::book::get_book)   // Public endpoint for public books
+                            .service(
+                                web::scope("")
+                                    .wrap(AuthMiddleware) // Protected endpoints require auth
+                                    .service(handlers::book::create_book)
+                                    .service(handlers::book::update_book)
+                                    .service(handlers::book::delete_book)
+                                    .service(handlers::book::get_my_books),
+                            ),
+                    )
+                    
                     // Public endpoints (no auth required)
                     .service(
                         web::scope("/alphabets")
                             .route("", web::get().to(handlers::alphabet::list_alphabets))
                             .route("/convert", web::post().to(handlers::alphabet::convert_text)),
                     )
+                    // Role management endpoints
                     .service(
                         web::scope("/roles")
-                            .route("", web::get().to(handlers::roles::list_roles)),
+                            .service(handlers::roles::list_roles) // Public endpoint
+                            .service(
+                                web::scope("")
+                                    .wrap(AuthMiddleware) // Protected endpoints require auth
+                                    .service(handlers::roles::list_assignable_roles)
+                                    .service(handlers::roles::list_manageable_roles),
+                            ),
                     ),
             )
     })

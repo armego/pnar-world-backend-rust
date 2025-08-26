@@ -56,7 +56,7 @@ pub async fn get_alphabet(pool: &PgPool, alphabet_id: Uuid) -> Result<PnarAlphab
             sort_order: record.get("sort_order"),
             created_at: record.get("created_at"),
         }),
-        None => Err(AppError::NotFound("Alphabet character not found".to_string())),
+        None => Err(AppError::NotFound("Alphabet character not found")),
     }
 }
 
@@ -74,10 +74,7 @@ pub async fn create_alphabet(
         .await?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict(format!(
-            "Alphabet character '{}' already exists",
-            request.small
-        )));
+        return Err(AppError::Conflict("Alphabet character already exists"));
     }
 
     let record = sqlx::query(
@@ -145,7 +142,7 @@ pub async fn update_alphabet(
             sort_order: record.get("sort_order"),
             created_at: record.get("created_at"),
         }),
-        None => Err(AppError::NotFound("Alphabet character not found".to_string())),
+        None => Err(AppError::NotFound("Alphabet character not found")),
     }
 }
 
@@ -158,7 +155,7 @@ pub async fn delete_alphabet(pool: &PgPool, alphabet_id: Uuid) -> Result<(), App
         .rows_affected();
 
     if rows_affected == 0 {
-        return Err(AppError::NotFound("Alphabet character not found".to_string()));
+        return Err(AppError::NotFound("Alphabet character not found"));
     }
 
     Ok(())

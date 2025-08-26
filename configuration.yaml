@@ -6,7 +6,7 @@ application:
   max_request_size: 1048576 # 1MB
   workers: null # Auto-detect based on CPU cores
   cors:
-    allowed_origins: ['http://localhost:3000', 'http://localhost:8080']
+    allowed_origins: ['*']
     allowed_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
     allowed_headers: ['Content-Type', 'Authorization', 'X-Requested-With']
     allow_credentials: true

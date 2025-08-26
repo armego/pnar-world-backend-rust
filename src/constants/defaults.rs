@@ -4,3 +4,7 @@ pub const DEFAULT_LANGUAGE: &str = "en";
 pub const DEFAULT_SOURCE_LANGUAGE: &str = "en";
 pub const DEFAULT_TARGET_LANGUAGE: &str = "pnar";
 pub const DEFAULT_TRANSLATION_TYPE: &str = "automatic";
+
+// Pagination defaults
+pub const PAGE: i64 = 1;
+pub const PER_PAGE: i64 = 10;

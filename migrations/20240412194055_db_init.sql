@@ -265,3 +265,65 @@ INSERT INTO pnar_alphabets (small, capital, kbf_small, kbf_capital, sort_order) 
 ('ũ', 'Ũ', 'uu', 'UU', 24),
 ('w', 'W', 'w', 'W', 25)
 ON CONFLICT (small) DO NOTHING;
+
+-- Create books table for managing Pnar language books/literature
+CREATE TABLE IF NOT EXISTS books (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    description TEXT,
+    isbn VARCHAR(20) UNIQUE,
+    publisher VARCHAR(255),
+    publication_date DATE,
+    language VARCHAR(10) NOT NULL DEFAULT 'pnar',
+    genre VARCHAR(100),
+    page_count INTEGER,
+    cover_image_url TEXT,
+    pdf_url TEXT,
+    epub_url TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    difficulty_level INTEGER DEFAULT 1 CHECK (difficulty_level BETWEEN 1 AND 5),
+    is_public BOOLEAN NOT NULL DEFAULT false,
+    tags TEXT[], -- Array of tags for categorization
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    updated_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add comments
+COMMENT ON TABLE books IS 'Books and literature in Pnar language';
+COMMENT ON COLUMN books.title IS 'Title of the book';
+COMMENT ON COLUMN books.author IS 'Author(s) of the book';
+COMMENT ON COLUMN books.description IS 'Book description or summary';
+COMMENT ON COLUMN books.isbn IS 'International Standard Book Number';
+COMMENT ON COLUMN books.language IS 'Primary language of the book';
+COMMENT ON COLUMN books.status IS 'Publication status: draft, published, archived';
+COMMENT ON COLUMN books.difficulty_level IS 'Reading difficulty level from 1 (beginner) to 5 (advanced)';
+COMMENT ON COLUMN books.is_public IS 'Whether the book is publicly accessible';
+COMMENT ON COLUMN books.tags IS 'Array of tags for categorization and search';
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
+CREATE INDEX IF NOT EXISTS idx_books_author ON books(author);
+CREATE INDEX IF NOT EXISTS idx_books_language ON books(language);
+CREATE INDEX IF NOT EXISTS idx_books_genre ON books(genre);
+CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
+CREATE INDEX IF NOT EXISTS idx_books_is_public ON books(is_public);
+CREATE INDEX IF NOT EXISTS idx_books_difficulty_level ON books(difficulty_level);
+CREATE INDEX IF NOT EXISTS idx_books_created_by ON books(created_by);
+CREATE INDEX IF NOT EXISTS idx_books_created_at ON books(created_at);
+CREATE INDEX IF NOT EXISTS idx_books_tags ON books USING GIN(tags);
+
+-- Add trigger for updated_at column
+CREATE TRIGGER update_books_updated_at 
+    BEFORE UPDATE ON books 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert some sample books
+INSERT INTO books (title, author, description, language, genre, difficulty_level, is_public, tags, created_by, status) VALUES
+('Ka Jingiathuh Pnar', 'U Kong Pakyntein', 'Traditional Pnar folktales and stories passed down through generations', 'pnar', 'folklore', 2, true, ARRAY['folklore', 'traditional', 'stories'], (SELECT id FROM users WHERE email = 'translator@pnar.online' LIMIT 1), 'published'),
+('Pnar-English Dictionary', 'Ka Bri Nonglait', 'Comprehensive dictionary for learning Pnar language', 'pnar', 'reference', 3, true, ARRAY['dictionary', 'reference', 'learning'], (SELECT id FROM users WHERE email = 'translator@pnar.online' LIMIT 1), 'published'),
+('Ka Ktien Pnar', 'U Hamlet Bareh', 'Collection of Pnar poems and verses', 'pnar', 'poetry', 4, true, ARRAY['poetry', 'literature', 'cultural'], (SELECT id FROM users WHERE email = 'translator@pnar.online' LIMIT 1), 'published')
+ON CONFLICT (isbn) DO NOTHING;

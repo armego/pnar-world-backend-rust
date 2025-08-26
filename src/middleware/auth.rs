@@ -43,11 +43,23 @@ impl AuthenticatedUser {
         self.is_translator() || self.role == roles::CONTRIBUTOR
     }
 
-    /// Check if the user can access another user's data
-    /// Superadmin and admin can access any user's data
-    /// Regular users can only access their own data
-    pub fn can_access_user(&self, target_user_id: Uuid) -> bool {
-        self.is_admin() || self.user_id == target_user_id
+    /// Check if the user can access another user's data based on hierarchy
+    /// - Superadmin: can access all users
+    /// - Admin: can access users of same rank and below
+    /// - Others: can only access their own data
+    pub fn can_access_user(&self, target_user_id: Uuid, target_role: Option<&str>) -> bool {
+        use crate::utils::authorization::{can_view_user};
+        
+        match target_role {
+            Some(role) => can_view_user(&self.role, self.user_id, role, target_user_id),
+            None => self.is_admin() || self.user_id == target_user_id,
+        }
+    }
+
+    /// Check if the user can manage another user based on role hierarchy
+    pub fn can_manage_user(&self, target_role: &str) -> bool {
+        use crate::utils::authorization::can_manage_user;
+        can_manage_user(&self.role, target_role)
     }
 
     /// Check if the user can modify dictionary entries
@@ -60,6 +72,18 @@ impl AuthenticatedUser {
     /// Moderators and above can verify entries
     pub fn can_verify_dictionary(&self) -> bool {
         self.is_moderator()
+    }
+
+    /// Check if the user can modify translations based on ownership
+    pub fn can_modify_translation(&self, translation_owner: Option<Uuid>) -> bool {
+        use crate::utils::authorization::can_modify_translation;
+        can_modify_translation(&self.role, self.user_id, translation_owner)
+    }
+
+    /// Check if the user can delete translations based on ownership
+    pub fn can_delete_translation(&self, translation_owner: Option<Uuid>) -> bool {
+        use crate::utils::authorization::can_delete_translation;
+        can_delete_translation(&self.role, self.user_id, translation_owner)
     }
 
     /// Check if the user can review translations
@@ -81,9 +105,10 @@ impl AuthenticatedUser {
     }
 
     /// Check if the user can manage other users
-    /// Admins and above can manage users
+    /// Only superadmin and admin can manage users
     pub fn can_manage_users(&self) -> bool {
-        self.is_admin()
+        use crate::utils::authorization::can_access_user_management;
+        can_access_user_management(&self.role)
     }
 
     /// Check if the user can delete any content

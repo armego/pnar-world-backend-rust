@@ -15,6 +15,7 @@ pub const INVALID_TOKEN: &str = "Invalid or expired token";
 pub const TRANSLATION_NOT_FOUND: &str = "Translation not found";
 pub const TRANSLATION_REQUEST_NOT_FOUND: &str = "Translation request not found";
 pub const DICTIONARY_ENTRY_NOT_FOUND: &str = "Dictionary entry not found";
+pub const BOOK_NOT_FOUND: &str = "Book not found";
 pub const CONTRIBUTION_NOT_FOUND: &str = "Contribution not found";
 pub const ANALYTICS_NOT_FOUND: &str = "Analytics record not found";
 pub const INVALID_INPUT: &str = "Invalid input provided";

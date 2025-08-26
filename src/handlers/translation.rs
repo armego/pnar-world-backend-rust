@@ -6,7 +6,10 @@ use uuid::Uuid;
 use crate::{
     dto::{CreateTranslationRequest, UpdateTranslationRequest},
     error::AppError,
-    middleware::auth::{AuthenticatedUser, AdminUser, TranslatorUser},
+    middleware::{
+        auth::{AuthenticatedUser, AdminUser},
+        hierarchy::{TranslationManager, check_translation_modification_access},
+    },
     services::translation_service,
 };
 
@@ -26,7 +29,7 @@ pub struct TranslationQueryParams {
         (status = 201, description = "Translation request created successfully", body = TranslationResponse),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Translator role required"),
+        (status = 403, description = "Forbidden - Contributor role or higher required"),
         (status = 500, description = "Internal server error")
     ),
     security(
@@ -35,7 +38,7 @@ pub struct TranslationQueryParams {
 )]
 pub async fn create_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: TranslatorUser, // Require translator role or higher
+    user: TranslationManager, // Require contributor role or higher
     req: web::Json<CreateTranslationRequest>,
 ) -> Result<HttpResponse, AppError> {
     let translation = translation_service::create_translation_request(
@@ -130,6 +133,7 @@ pub async fn list_translations(
         (status = 200, description = "Translation request updated successfully", body = TranslationResponse),
         (status = 404, description = "Translation request not found"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Can only modify own translations"),
         (status = 500, description = "Internal server error")
     ),
     security(
@@ -138,14 +142,28 @@ pub async fn list_translations(
 )]
 pub async fn update_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: TranslatorUser, // Only translators can update their own translations
+    user: AuthenticatedUser,
     path: web::Path<Uuid>,
     req: web::Json<UpdateTranslationRequest>,
 ) -> Result<HttpResponse, AppError> {
+    let translation_id = path.into_inner();
+    
+    // Get translation to check ownership
+    let existing_translation = translation_service::get_translation_request(
+        pool.get_ref(),
+        translation_id,
+        user.user_id,
+        &user.role,
+    )
+    .await?;
+    
+    // Check if user can modify this translation
+    check_translation_modification_access(&user, Some(existing_translation.user_id))?;
+
     let translation = translation_service::update_translation_request(
         pool.get_ref(),
-        path.into_inner(),
-        user.0.user_id,
+        translation_id,
+        user.user_id,
         req.into_inner(),
     )
     .await?;
@@ -165,6 +183,7 @@ pub async fn update_translation(
         (status = 204, description = "Translation request deleted successfully"),
         (status = 404, description = "Translation request not found"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Can only delete own translations"),
         (status = 500, description = "Internal server error")
     ),
     security(
@@ -173,13 +192,31 @@ pub async fn update_translation(
 )]
 pub async fn delete_translation(
     pool: web::Data<sqlx::PgPool>,
-    user: TranslatorUser, // Only translators can delete their own translations
+    user: AuthenticatedUser,
     path: web::Path<Uuid>,
 ) -> Result<HttpResponse, AppError> {
+    let translation_id = path.into_inner();
+    
+    // Get translation to check ownership
+    let existing_translation = translation_service::get_translation_request(
+        pool.get_ref(),
+        translation_id,
+        user.user_id,
+        &user.role,
+    )
+    .await?;
+    
+    // Check if user can delete this translation
+    if !user.can_delete_translation(Some(existing_translation.user_id)) {
+        return Err(AppError::Forbidden(
+            "Access denied. You can only delete your own translations.",
+        ));
+    }
+
     translation_service::delete_translation_request(
         pool.get_ref(),
-        path.into_inner(),
-        user.0.user_id,
+        translation_id,
+        user.user_id,
     )
     .await?;
 

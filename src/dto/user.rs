@@ -139,3 +139,15 @@ pub struct AwardPointsRequest {
     #[schema(example = "Good translation work")]
     pub reason: String,
 }
+
+/// Update user role request
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct UpdateUserRoleRequest {
+    #[validate(length(
+        min = 2,
+        max = 20,
+        message = "Role must be between 2 and 20 characters"
+    ))]
+    #[schema(example = "contributor")]
+    pub role: String,
+}

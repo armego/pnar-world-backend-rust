@@ -237,6 +237,15 @@ pub struct AnalyticsPaginatedResponse {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Book paginated response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BookPaginatedResponse {
+    pub data: Vec<crate::dto::book::BookResponse>,
+    pub pagination: PaginationInfo,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub timestamp: DateTime<Utc>,
+}
+
 // Macro to generate paginated response implementations
 macro_rules! impl_paginated_response {
     ($response_type:ty, $data_type:ty) => {
@@ -264,6 +273,7 @@ impl_paginated_response!(UserPaginatedResponse, UserResponse);
 impl_paginated_response!(TranslationPaginatedResponse, TranslationResponse);
 impl_paginated_response!(ContributionPaginatedResponse, ContributionResponse);
 impl_paginated_response!(AnalyticsPaginatedResponse, AnalyticsResponse);
+impl_paginated_response!(BookPaginatedResponse, crate::dto::book::BookResponse);
 
 /// Health check response
 #[derive(Debug, Serialize, ToSchema)]

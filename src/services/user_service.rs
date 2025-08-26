@@ -451,3 +451,45 @@ pub async fn verify_email(pool: &PgPool, user_id: Uuid) -> AppResult<UserRespons
         updated_at: user_row.get("updated_at"),
     })
 }
+
+/// Update user role
+pub async fn update_user_role(
+    pool: &PgPool,
+    user_id: Uuid,
+    new_role: &str,
+) -> AppResult<UserResponse> {
+    let user_row = sqlx::query(
+        r#"
+        UPDATE users 
+        SET 
+            role = $2,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING 
+            id, email, password, full_name, avatar_url, role, 
+            translation_points, bio, preferred_language, settings,
+            is_active, is_email_verified, created_at, updated_at
+        "#,
+    )
+    .bind(user_id)
+    .bind(new_role)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound(error_messages::USER_NOT_FOUND))?;
+
+    Ok(UserResponse {
+        id: user_row.get("id"),
+        email: user_row.get("email"),
+        full_name: user_row.get("full_name"),
+        avatar_url: user_row.get("avatar_url"),
+        role: user_row.get("role"),
+        translation_points: user_row.get("translation_points"),
+        bio: user_row.get("bio"),
+        preferred_language: user_row.get("preferred_language"),
+        settings: user_row.get("settings"),
+        is_active: user_row.get("is_active"),
+        is_email_verified: user_row.get("is_email_verified"),
+        created_at: user_row.get("created_at"),
+        updated_at: user_row.get("updated_at"),
+    })
+}

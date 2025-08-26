@@ -4,12 +4,16 @@ use crate::{
         responses::{ApiResponse, SuccessResponse},
         user::{
             AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
-            UserQueryParams,
+            UpdateUserRoleRequest, UserQueryParams,
         },
     },
     error::AppError,
-    middleware::auth::{AdminUser, AuthenticatedUser},
+    middleware::{
+        auth::{AdminUser, AuthenticatedUser},
+        hierarchy::{ManagerUser, check_user_access, check_user_management_access},
+    },
     services::user_service,
+    utils::authorization,
 };
 use actix_web::{delete, get, patch, post, put, web, HttpResponse};
 use sqlx::PgPool;
@@ -28,7 +32,7 @@ use validator::Validate;
         (status = 201, description = "User created successfully", body = UserApiResponse),
         (status = 400, description = "Invalid input data"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin access required"),
+        (status = 403, description = "Forbidden - User management privileges required"),
         (status = 409, description = "User already exists")
     ),
     security(
@@ -39,12 +43,18 @@ use validator::Validate;
 pub async fn create_user(
     pool: web::Data<PgPool>,
     request: web::Json<CreateUserRequest>,
-    _admin_user: AdminUser, // Only admins can create users
+    manager_user: ManagerUser, // Only users with management privileges
 ) -> Result<HttpResponse, AppError> {
     // Validate request
     request.validate()?;
 
-    let user = user_service::create_user(&pool, request.into_inner()).await?;
+    // Check if manager can create user with the requested role
+    let request_inner = request.into_inner();
+    if let Some(ref role) = request_inner.role {
+        check_user_management_access(&manager_user.0, role)?;
+    }
+
+    let user = user_service::create_user(&pool, request_inner).await?;
 
     Ok(HttpResponse::Created().json(ApiResponse::new(user)))
 }
@@ -61,7 +71,7 @@ pub async fn create_user(
     responses(
         (status = 200, description = "User retrieved successfully", body = UserApiResponse),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
+        (status = 403, description = "Forbidden - Insufficient permissions"),
         (status = 404, description = "User not found")
     ),
     security(
@@ -76,16 +86,13 @@ pub async fn get_user(
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
     
-    // Check if user can access this profile (admin or own profile)
-    if !auth_user.can_access_user(user_id) {
-        return Err(AppError::Forbidden(
-            error_messages::ONLY_OWN_PROFILE_OR_ADMIN,
-        ));
-    }
+    // Get target user to check their role for hierarchical access
+    let target_user = user_service::get_user_by_id(&pool, user_id).await?;
+    
+    // Check hierarchical access permissions
+    check_user_access(&auth_user, user_id, Some(&target_user.role))?;
 
-    let user = user_service::get_user_by_id(&pool, user_id).await?;
-
-    Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
+    Ok(HttpResponse::Ok().json(ApiResponse::new(target_user)))
 }
 
 /// Get current user profile
@@ -124,7 +131,7 @@ pub async fn get_current_user(
         (status = 200, description = "Users retrieved successfully", body = UserPaginatedResponse),
         (status = 400, description = "Invalid query parameters"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin access required")
+        (status = 403, description = "Forbidden - User management access required")
     ),
     security(
         ("bearer_auth" = [])
@@ -134,7 +141,7 @@ pub async fn get_current_user(
 pub async fn list_users(
     pool: web::Data<PgPool>,
     query: web::Query<UserQueryParams>,
-    _admin_user: AdminUser, // Only admins can list all users
+    _manager_user: ManagerUser, // Only users with management privileges
 ) -> Result<HttpResponse, AppError> {
     // Validate query parameters
     query.validate()?;
@@ -161,7 +168,7 @@ pub async fn list_users(
         (status = 200, description = "User updated successfully", body = UserApiResponse),
         (status = 400, description = "Invalid input data"),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
+        (status = 403, description = "Forbidden - Insufficient permissions"),
         (status = 404, description = "User not found")
     )
 )]
@@ -177,14 +184,22 @@ pub async fn update_user(
     // Validate request
     request.validate()?;
 
-    // Check if user can update this profile (admin or own profile)
-    if !auth_user.can_access_user(user_id) {
-        return Err(AppError::Forbidden(
-            error_messages::ONLY_UPDATE_OWN_PROFILE_OR_ADMIN,
-        ));
+    // Get target user to check their current role
+    let target_user = user_service::get_user_by_id(&pool, user_id).await?;
+    
+    // Check hierarchical access permissions
+    check_user_access(&auth_user, user_id, Some(&target_user.role))?;
+    
+    // If trying to change role, check management permissions
+    let request_inner = request.into_inner();
+    if let Some(ref new_role) = request_inner.role {
+        if new_role != &target_user.role {
+            check_user_management_access(&auth_user, new_role)?;
+            check_user_management_access(&auth_user, &target_user.role)?;
+        }
     }
 
-    let user = user_service::update_user(&pool, user_id, request.into_inner()).await?;
+    let user = user_service::update_user(&pool, user_id, request_inner).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
 }
@@ -239,8 +254,11 @@ pub async fn update_user_password(
     // Validate request
     request.validate()?;
 
+    // Get the target user to check permissions
+    let target_user = user_service::get_user_by_id(&pool, user_id).await?;
+
     // Check if user can update this password (admin or own profile)
-    if !auth_user.can_access_user(user_id) {
+    if !auth_user.can_access_user(user_id, Some(&target_user.role)) {
         return Err(AppError::Forbidden(
             error_messages::ONLY_UPDATE_OWN_PASSWORD_OR_ADMIN,
         ));
@@ -286,7 +304,7 @@ pub async fn update_current_user_password(
     responses(
         (status = 200, description = "User deleted successfully", body = SuccessResponse),
         (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin access required or access to own profile"),
+        (status = 403, description = "Forbidden - Insufficient permissions"),
         (status = 404, description = "User not found")
     )
 )]
@@ -298,11 +316,15 @@ pub async fn delete_user(
 ) -> Result<HttpResponse, AppError> {
     let user_id = path.into_inner();
 
-    // Check if user can delete this account (admin or own account)
-    if !auth_user.can_access_user(user_id) {
-        return Err(AppError::Forbidden(
-            error_messages::ONLY_DELETE_OWN_ACCOUNT_OR_ADMIN,
-        ));
+    // Get target user to check their role
+    let target_user = user_service::get_user_by_id(&pool, user_id).await?;
+    
+    // Check if user can delete this account based on hierarchy
+    if auth_user.user_id == user_id {
+        // Users can always delete their own account
+    } else {
+        // Check management permissions for deleting other users
+        check_user_management_access(&auth_user, &target_user.role)?;
     }
 
     user_service::delete_user(&pool, user_id).await?;
@@ -426,4 +448,60 @@ pub async fn get_user_by_email(
     let user = user_service::get_user_by_email(&pool, &email).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(user)))
+}
+
+/// Update user role
+/// PUT /api/v1/users/{id}/role
+#[utoipa::path(
+    put,
+    path = "/api/v1/users/{id}/role",
+    tag = "users",
+    params(
+        ("id" = Uuid, Path, description = "User ID")
+    ),
+    request_body = UpdateUserRoleRequest,
+    responses(
+        (status = 200, description = "User role updated successfully", body = UserApiResponse),
+        (status = 400, description = "Invalid input data"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - User management privileges required or cannot assign this role"),
+        (status = 404, description = "User not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+#[put("/{id}/role")]
+pub async fn update_user_role(
+    pool: web::Data<PgPool>,
+    path: web::Path<Uuid>,
+    request: web::Json<UpdateUserRoleRequest>,
+    manager_user: ManagerUser, // Only users with management privileges
+) -> Result<HttpResponse, AppError> {
+    let user_id = path.into_inner();
+    
+    // Validate request
+    request.validate()?;
+
+    // Check if the manager can assign this role
+    if !authorization::can_assign_role(&manager_user.0.role, &request.role) {
+        return Err(AppError::Forbidden(
+            "You don't have permission to assign this role",
+        ));
+    }
+
+    // Get the target user to check management permissions
+    let target_user = user_service::get_user_by_id(&pool, user_id).await?;
+    
+    // Check if the manager can manage this user
+    if !authorization::can_manage_user(&manager_user.0.role, &target_user.role) {
+        return Err(AppError::Forbidden(
+            "You don't have permission to manage this user",
+        ));
+    }
+
+    // Update the user's role
+    let updated_user = user_service::update_user_role(&pool, user_id, &request.role).await?;
+
+    Ok(HttpResponse::Ok().json(ApiResponse::new(updated_user)))
 }

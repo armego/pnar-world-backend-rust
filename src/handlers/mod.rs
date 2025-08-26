@@ -1,6 +1,7 @@
 pub mod alphabet;
 pub mod analytics;
 pub mod auth;
+pub mod book;
 pub mod contribution;
 pub mod dictionary;
 pub mod health;

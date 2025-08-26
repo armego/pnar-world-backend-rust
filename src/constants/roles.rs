@@ -124,3 +124,31 @@ pub fn has_hierarchy_level(role_a: &str, role_b: &str) -> bool {
     let level_b = get_role_info(role_b).map(|r| r.hierarchy_level).unwrap_or(0);
     level_a >= level_b
 }
+
+/// Get roles that can be assigned by a specific role (for role assignment API)
+/// - Superadmin: can assign all roles
+/// - Admin: can only assign contributor and user roles
+pub fn get_assignable_roles_info(manager_role: &str) -> Vec<&'static RoleInfo> {
+    match manager_role {
+        SUPERADMIN => APPLICATION_ROLES.iter().collect(),
+        ADMIN => APPLICATION_ROLES
+            .iter()
+            .filter(|role| matches!(role.role_id, CONTRIBUTOR | USER))
+            .collect(),
+        _ => vec![], // Others cannot assign roles
+    }
+}
+
+/// Get roles that can be managed by a specific role (for filtering user lists)
+/// - Superadmin: can manage all roles
+/// - Admin: can manage contributor and user roles, can view admin role
+pub fn get_manageable_roles_info(manager_role: &str) -> Vec<&'static RoleInfo> {
+    match manager_role {
+        SUPERADMIN => APPLICATION_ROLES.iter().collect(),
+        ADMIN => APPLICATION_ROLES
+            .iter()
+            .filter(|role| matches!(role.role_id, ADMIN | CONTRIBUTOR | USER))
+            .collect(),
+        _ => vec![], // Others cannot manage users
+    }
+}
