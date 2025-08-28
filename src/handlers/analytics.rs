@@ -1,6 +1,5 @@
 use actix_web::{web, HttpResponse, Result};
 use serde::Deserialize;
-use utoipa::IntoParams;
 use uuid::Uuid;
 
 use crate::{
@@ -10,7 +9,6 @@ use crate::{
     services::analytics_service,
 };
 
-#[derive(Deserialize, IntoParams)]
 pub struct AnalyticsQueryParams {
     pub page: Option<i64>,
     pub per_page: Option<i64>,
@@ -19,27 +17,11 @@ pub struct AnalyticsQueryParams {
     pub event_type: Option<String>,
 }
 
-#[derive(Deserialize, IntoParams)]
 pub struct WordStatsParams {
     pub user_id: Option<Uuid>,
 }
 
 /// Create a new analytics record
-#[utoipa::path(
-    post,
-    path = "/api/v1/analytics",
-    tag = "analytics",
-    request_body = CreateAnalyticsRequest,
-    responses(
-        (status = 201, description = "Analytics record created successfully", body = AnalyticsResponse),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
-    )
-)]
 pub async fn create_analytics(
     pool: web::Data<sqlx::PgPool>,
     user: AuthenticatedUser,
@@ -49,24 +31,12 @@ pub async fn create_analytics(
         pool.get_ref(),
         Some(user.user_id),
         req.into_inner(),
-    )
     .await?;
 
     Ok(HttpResponse::Created().json(analytics))
 }
 
 /// Create an anonymous analytics record (no authentication required)
-#[utoipa::path(
-    post,
-    path = "/api/v1/analytics/anonymous",
-    tag = "analytics",
-    request_body = CreateAnalyticsRequest,
-    responses(
-        (status = 201, description = "Anonymous analytics record created successfully", body = AnalyticsResponse),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn create_anonymous_analytics(
     pool: web::Data<sqlx::PgPool>,
     req: web::Json<CreateAnalyticsRequest>,
@@ -78,19 +48,6 @@ pub async fn create_anonymous_analytics(
 }
 
 /// Get an analytics record by ID
-#[utoipa::path(
-    get,
-    path = "/api/v1/analytics/{id}",
-    tag = "analytics",
-    params(
-        ("id" = Uuid, Path, description = "Analytics record ID")
-    ),
-    responses(
-        (status = 200, description = "Analytics record retrieved successfully", body = AnalyticsResponse),
-        (status = 404, description = "Analytics record not found"),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn get_analytics(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<Uuid>,
@@ -102,16 +59,6 @@ pub async fn get_analytics(
 }
 
 /// List analytics records with filtering
-#[utoipa::path(
-    get,
-    path = "/api/v1/analytics",
-    tag = "analytics",
-    params(AnalyticsQueryParams),
-    responses(
-        (status = 200, description = "Analytics records retrieved successfully", body = AnalyticsPaginatedResponse),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn list_analytics(
     pool: web::Data<sqlx::PgPool>,
     query: web::Query<AnalyticsQueryParams>,
@@ -129,31 +76,12 @@ pub async fn list_analytics(
         query.event_type.as_deref(),
         page,
         per_page,
-    )
     .await?;
 
     Ok(HttpResponse::Ok().json(analytics))
 }
 
 /// Update an analytics record
-#[utoipa::path(
-    put,
-    path = "/api/v1/analytics/{id}",
-    tag = "analytics",
-    params(
-        ("id" = Uuid, Path, description = "Analytics record ID")
-    ),
-    request_body = UpdateAnalyticsRequest,
-    responses(
-        (status = 200, description = "Analytics record updated successfully", body = AnalyticsResponse),
-        (status = 404, description = "Analytics record not found"),
-        (status = 401, description = "Unauthorized"),
-        (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
-    )
-)]
 pub async fn update_analytics(
     pool: web::Data<sqlx::PgPool>,
     _user: AuthenticatedUser,
@@ -164,30 +92,12 @@ pub async fn update_analytics(
         pool.get_ref(),
         path.into_inner(),
         req.into_inner(),
-    )
     .await?;
 
     Ok(HttpResponse::Ok().json(analytics))
 }
 
 /// Delete an analytics record
-#[utoipa::path(
-    delete,
-    path = "/api/v1/analytics/{id}",
-    tag = "analytics",
-    params(
-        ("id" = Uuid, Path, description = "Analytics record ID")
-    ),
-    responses(
-        (status = 204, description = "Analytics record deleted successfully"),
-        (status = 404, description = "Analytics record not found"),
-        (status = 401, description = "Unauthorized"),
-        (status = 500, description = "Internal server error")
-    ),
-    security(
-        ("Bearer" = [])
-    )
-)]
 pub async fn delete_analytics(
     pool: web::Data<sqlx::PgPool>,
     _user: AuthenticatedUser,
@@ -199,20 +109,6 @@ pub async fn delete_analytics(
 }
 
 /// Get word usage statistics
-#[utoipa::path(
-    get,
-    path = "/api/v1/analytics/words/{word_id}/stats",
-    tag = "analytics",
-    params(
-        ("word_id" = Uuid, Path, description = "Word ID"),
-        WordStatsParams
-    ),
-    responses(
-        (status = 200, description = "Word usage statistics retrieved successfully", body = serde_json::Value),
-        (status = 404, description = "Word not found"),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn get_word_stats(
     pool: web::Data<sqlx::PgPool>,
     path: web::Path<Uuid>,

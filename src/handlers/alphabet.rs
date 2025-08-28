@@ -1,21 +1,18 @@
 use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use crate::{
     constants::alphabet::{convert_kbf_to_pnar, convert_pnar_to_kbf, PNAR_ALPHABET},
     error::AppError,
 };
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ConvertTextRequest {
-    #[schema(example = "kiniise")]
     pub text: String,
-    #[schema(example = "kbf_to_pnar")]
     pub direction: ConversionDirection,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ConversionDirection {
     #[serde(rename = "kbf_to_pnar")]
     KbfToPnar,
@@ -23,41 +20,19 @@ pub enum ConversionDirection {
     PnarToKbf,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ConvertTextResponse {
-    #[schema(example = "kiniïsæ")]
     pub converted_text: String,
-    #[schema(example = "kiniise")]
     pub original_text: String,
     pub direction: ConversionDirection,
 }
 
 /// Get all Pnar alphabet characters (Public endpoint)
-#[utoipa::path(
-    get,
-    path = "/api/v1/alphabets",
-    tag = "alphabets",
-    responses(
-        (status = 200, description = "List of alphabet characters", body = [crate::constants::alphabet::PnarCharacter]),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn list_alphabets() -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(&PNAR_ALPHABET[..]))
 }
 
 /// Convert text between Pnar and keyboard-friendly format (Public endpoint)
-#[utoipa::path(
-    post,
-    path = "/api/v1/alphabets/convert",
-    tag = "alphabets",
-    request_body = ConvertTextRequest,
-    responses(
-        (status = 200, description = "Converted text", body = ConvertTextResponse),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
-    )
-)]
 pub async fn convert_text(
     convert_request: web::Json<ConvertTextRequest>,
     req: actix_web::HttpRequest,

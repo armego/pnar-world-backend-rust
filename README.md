@@ -9,6 +9,7 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 ## 🚀 Features
 
 ### Core Functionality
+
 - **Dictionary Management**: Create, read, update, and delete Pnar dictionary entries
 - **Translation Services**: Request and manage translations between Pnar and English
 - **User Management**: Role-based authentication and authorization
@@ -16,6 +17,7 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 - **Alphabet Conversion**: Convert between traditional and keyboard-friendly Pnar text
 
 ### Production-Ready Features
+
 - **Security**: Rate limiting, CORS, security headers, JWT authentication
 - **Monitoring**: Health checks, metrics, structured logging
 - **Performance**: Connection pooling, optimized queries, caching
@@ -51,71 +53,144 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 ## 📋 Prerequisites
 
 - **Rust**: 1.89 or later
-- **PostgreSQL**: 15 or later
-- **Container Runtime**: Docker or Podman
+- **PostgreSQL**: 15 or later (installed locally or via Docker)
+- **Optional**: Docker (for Adminer database management)
 - **System**: Linux, macOS, or Windows
 
 ## 🚀 Quick Start
 
-### Development Setup
+### Local Development Environment
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/armego/pnar-world-backend-rust.git
-   cd pnar-world-backend-rust
-   ```
+#### One-Command Setup
 
-2. **Start the development environment**
-   ```bash
-   ./start.sh
-   ```
+```bash
+# Start everything: PostgreSQL, migrations, Adminer, and your API
+./dev.sh
 
-3. **Access the API**
-   - API: http://localhost:8000
-   - Documentation: http://localhost:8000/swagger-ui/index.html
-   - Database Admin: http://localhost:8080
+# Access points:
+# - API: http://localhost:8000
+# - Adminer (Database UI): http://localhost:8080
+# - Database: localhost:5432 (postgres/root)
+```
 
-### Production Deployment
+#### Manual Setup (Alternative)
 
-1. **Build and deploy**
-   ```bash
-   ./deploy.sh
-   ```
+```bash
+# 1. Install PostgreSQL (if not already installed)
+brew install postgresql
+brew services start postgresql
 
-2. **Or use Docker Compose**
-   ```bash
-   cd deploy
-   docker-compose up -d
-   ```
+# 2. Setup database
+createdb pnar_world
+psql -d postgres -c "CREATE USER postgres WITH PASSWORD 'root';"
+psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
 
-## 🔧 Configuration
+# 3. Run migrations
+DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
+
+# 4. Start Adminer (optional, for database management)
+docker run -d --name pnar-adminer -p 8080:8080 adminer
+
+# 5. Run your API
+cargo run
+```
+
+#### Stop Development Environment
+
+```bash
+# Stop all services
+./stop-dev.sh
+
+# Or manually:
+# - Stop API: Ctrl+C in terminal
+# - Stop Adminer: docker stop pnar-adminer && docker rm pnar-adminer
+# - Stop PostgreSQL: brew services stop postgresql
+```
+
+## 📋 Environment Overview
+
+### Local Development Setup
+
+- **PostgreSQL** database (local installation)
+- **Adminer** web-based database client (via Docker)
+- **Automatic migrations** on startup
+- **Hot reload** for Rust development
+- **Simple setup** focused on backend development
+
+## 🔧 Available Scripts
+
+| Script          | Purpose                  | Description                             |
+| --------------- | ------------------------ | --------------------------------------- |
+| `./dev.sh`      | 🚀 **Full development**  | PostgreSQL + Adminer + API + migrations |
+| `./stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL       |
+| `./reset-db.sh` | � **Reset database**     | Drop & recreate DB, run migrations      |
+| `cargo run`     | ⚡ **Run API only**      | Start Rust API (DB must be running)     |
+
+### Script Usage Examples
+
+```bash
+# Development workflow
+./dev.sh                     # Start everything automatically
+# API available at http://localhost:8000
+# Adminer at http://localhost:8080
+
+# Reset database (WARNING: deletes all data)
+./reset-db.sh
+
+# Stop everything
+./stop-dev.sh
+
+# Run API only (if DB is already running)
+cargo run
+```
+
+### Database Management
+
+**Using Adminer (Web UI):**
+
+- Open: http://localhost:8080
+- Server: localhost
+- Username: postgres
+- Password: root
+- Database: pnar_world
+
+**Using psql (Command Line):**
+
+```bash
+# Connect to database
+psql -h localhost -U postgres -d pnar_world
+
+# List tables
+\dt
+
+# Exit
+\q
+```
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `APP_ENVIRONMENT` | Environment (development/production) | development | No |
-| `DATABASE_HOST` | PostgreSQL host | 127.0.0.1 | Yes |
-| `DATABASE_USERNAME` | Database username | postgres | Yes |
-| `DATABASE_PASSWORD` | Database password | - | Yes |
-| `DATABASE_NAME` | Database name | pnar_world | Yes |
-| `JWT_SECRET` | JWT signing secret | - | Yes |
-| `RUST_LOG` | Log level | info | No |
+| Variable          | Description                  | Default                                                | Required |
+| ----------------- | ---------------------------- | ------------------------------------------------------ | -------- |
+| `DATABASE_URL`    | PostgreSQL connection string | `postgresql://postgres:root@localhost:5432/pnar_world` | Yes      |
+| `RUST_LOG`        | Log level                    | `info`                                                 | No       |
+| `APP_ENVIRONMENT` | Environment name             | `development`                                          | No       |
 
 ### Configuration Files
 
 - `configuration.yaml` - Development configuration
-- `configuration.production.yaml` - Production configuration
+- `configuration.production.yaml` - Production configuration (if needed)
 
 ## 🔒 Security
 
 ### Authentication & Authorization
+
 - JWT-based authentication
 - Role-based access control (RBAC)
 - Argon2 password hashing
 - Session management
 
 ### Security Measures
+
 - Rate limiting (60 requests/minute by default)
 - CORS configuration
 - Security headers (CSP, HSTS, etc.)
@@ -124,24 +199,26 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 
 ### Roles & Permissions
 
-| Role | Permissions |
-|------|-------------|
-| `superadmin` | Full system access |
-| `admin` | User and content management |
-| `moderator` | Content moderation and verification |
-| `translator` | Translation and dictionary management |
-| `contributor` | Content creation |
-| `user` | Basic API access |
+| Role          | Permissions                           |
+| ------------- | ------------------------------------- |
+| `superadmin`  | Full system access                    |
+| `admin`       | User and content management           |
+| `moderator`   | Content moderation and verification   |
+| `translator`  | Translation and dictionary management |
+| `contributor` | Content creation                      |
+| `user`        | Basic API access                      |
 
 ## 📊 API Endpoints
 
 ### Authentication
+
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
 - `POST /api/v1/auth/logout` - User logout
 - `GET /api/v1/auth/profile` - Get user profile
 
 ### Dictionary
+
 - `GET /api/v1/dictionary` - List dictionary entries
 - `POST /api/v1/dictionary` - Create dictionary entry
 - `GET /api/v1/dictionary/{id}` - Get dictionary entry
@@ -149,12 +226,14 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 - `DELETE /api/v1/dictionary/{id}` - Delete dictionary entry
 
 ### Health & Monitoring
+
 - `GET /api/v1/health` - Comprehensive health check
 - `GET /api/v1/health/live` - Liveness probe
 - `GET /api/v1/health/ready` - Readiness probe
 - `GET /api/v1/metrics` - Application metrics
 
 ### Documentation
+
 - `GET /swagger-ui/index.html` - Interactive API documentation
 - `GET /api-doc/openapi.json` - OpenAPI specification
 
@@ -168,7 +247,7 @@ services:
   api:
     image: pnar-world-api:1.0.0
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
       - APP_ENVIRONMENT=production
       - DATABASE_HOST=postgres
@@ -177,7 +256,7 @@ services:
       - JWT_SECRET=your-jwt-secret
     depends_on:
       - postgres
-    
+
   postgres:
     image: postgres:15-alpine
     environment:
@@ -191,59 +270,150 @@ volumes:
   postgres_data:
 ```
 
-### Using Kubernetes
+### Production Deployment
+
+For production deployment with optimized release build:
 
 ```bash
-kubectl apply -f deploy/deployment.yaml
+# Deploy to production pod (includes database, migrations, and health checks)
+./deploy.sh
+
+# The script will:
+# - Build Rust app in release mode with optimizations
+# - Create production pod configuration
+# - Deploy PostgreSQL database
+# - Run database migrations
+# - Start the API application
+# - Perform health checks
 ```
+
+**Production Features:**
+
+- 🚀 **Release build** with full optimizations
+- 🔒 **Secure credentials** (auto-generated)
+- 🗄️ **PostgreSQL database** (no Adminer in production)
+- 🔄 **Automatic migrations**
+- ❤️ **Health checks** and monitoring
+- 📊 **Production logging** and error handling
 
 ## 📈 Monitoring & Observability
 
 ### Health Checks
+
 - **Liveness**: `/api/v1/health/live` - Basic service availability
 - **Readiness**: `/api/v1/health/ready` - Service ready to handle requests
 - **Health**: `/api/v1/health` - Comprehensive system health
 
 ### Metrics
+
 - **Application**: Request counts, response times, error rates
 - **Database**: Connection pool stats, query performance
 - **System**: Memory usage, CPU utilization
 
 ### Logging
+
 - Structured JSON logging
 - Request tracing with correlation IDs
 - Error tracking and alerting
 - Performance monitoring
 
-## 🧪 Testing
+## 🧪 API Testing
 
-### Run Tests
+### Automated Testing
+
+Use the comprehensive API testing script to verify all endpoints:
+
 ```bash
-# Unit tests
-cargo test
+# Test all APIs automatically
+./test-apis.sh
 
-# Integration tests
-cargo test --test integration
-
-# Linting
-cargo clippy
-
-# Security audit
-cargo audit
+# Test with custom configuration
+API_BASE_URL=http://localhost:8080 ./test-apis.sh
+TIMEOUT=30 ./test-apis.sh
 ```
 
-### Load Testing
-```bash
-# Using Apache Bench
-ab -n 1000 -c 10 http://localhost:8000/api/v1/health
+### What the Test Script Does:
 
-# Using wrk
-wrk -t12 -c400 -d30s http://localhost:8000/api/v1/health
-```
+#### ✅ **Health & Monitoring**
+
+- Health check endpoints (`/health`, `/health/live`, `/health/ready`)
+- Metrics endpoint (`/metrics`)
+
+#### 🔐 **Authentication**
+
+- User registration and login
+- Profile management
+- Token validation
+
+#### 👥 **User Management**
+
+- User CRUD operations
+- Password updates
+- Points awarding
+- Email verification
+
+#### 📚 **Dictionary**
+
+- Public dictionary access
+- Protected dictionary management
+- Search functionality
+
+#### 🌐 **Translations**
+
+- Translation requests
+- Translation management
+
+#### 🤝 **Contributions**
+
+- User contributions
+- Contribution management
+
+#### 📊 **Analytics**
+
+- Usage analytics
+- Anonymous analytics
+
+#### 🔤 **Alphabet**
+
+- Character mappings
+- Text conversion
+
+#### 📖 **Books**
+
+- Book management
+- Public/private books
+
+#### 🔔 **Notifications**
+
+- Notification management
+- Read/unread status
+
+#### 👮 **Roles**
+
+- Role information
+- Permission management
+
+### Test Results
+
+The script provides:
+
+- **✅ Pass/Fail status** for each endpoint
+- **📊 Summary report** with totals
+- **🔍 Detailed error messages** for failures
+- **🚀 Automatic application startup** if needed
+
+### Manual Testing
+
+You can also test individual endpoints using Swagger UI:
+
+- **Swagger UI:** `http://localhost:8000/swagger-ui/index.html`
+- **Interactive testing** with try-it-out functionality
+- **Request/response examples** for all endpoints
 
 ## 🔧 Development
 
 ### Project Structure
+
 ```
 src/
 ├── config.rs          # Configuration management
@@ -263,27 +433,30 @@ deploy/               # Deployment configurations
 ### Adding New Features
 
 1. **Create a new handler**
+
    ```rust
    // src/handlers/my_feature.rs
    use actix_web::{web, HttpResponse};
-   
+
    pub async fn my_endpoint() -> Result<HttpResponse, AppError> {
        Ok(HttpResponse::Ok().json("Hello, World!"))
    }
    ```
 
 2. **Add to routing**
+
    ```rust
    // src/startup.rs
    .route("/my-feature", web::get().to(handlers::my_feature::my_endpoint))
    ```
 
 3. **Add tests**
+
    ```rust
    #[cfg(test)]
    mod tests {
        use super::*;
-       
+
        #[tokio::test]
        async fn test_my_endpoint() {
            // Test implementation
@@ -296,6 +469,7 @@ deploy/               # Deployment configurations
 ### Common Issues
 
 **Database Connection Failed**
+
 ```bash
 # Check database is running
 podman ps | grep postgres
@@ -305,6 +479,7 @@ psql -h localhost -U postgres -d pnar_world
 ```
 
 **Migration Errors**
+
 ```bash
 # Reset database
 ./start.sh  # This will recreate the database
@@ -314,6 +489,7 @@ sqlx migrate run --database-url postgresql://postgres:root@localhost/pnar_world
 ```
 
 **Container Won't Start**
+
 ```bash
 # Check logs
 podman logs pnar-app-pod-api
@@ -325,11 +501,13 @@ curl http://localhost:8000/api/v1/health
 ### Performance Tuning
 
 **Database**
+
 - Adjust connection pool size in configuration
 - Monitor slow queries
 - Add database indexes for frequently queried fields
 
 **Application**
+
 - Tune worker count based on CPU cores
 - Adjust request timeout settings
 - Enable compression for large responses
@@ -355,7 +533,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Stavros Grigoriou** - *Initial work* - [unix121@protonmail.com](mailto:unix121@protonmail.com)
+- **Stavros Grigoriou** - _Initial work_ - [unix121@protonmail.com](mailto:unix121@protonmail.com)
 
 ## 🙏 Acknowledgments
 

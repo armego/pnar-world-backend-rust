@@ -21,20 +21,9 @@ pub async fn create_connection_pool(settings: &DatabaseSettings) -> AppResult<Pg
             e
         })?;
 
-    // Test the connection immediately
-    info!("Testing database connection...");
-    sqlx::query("SELECT 1")
-        .fetch_one(&pool)
-        .await
-        .map_err(|e| {
-            error!("Database connection test failed: {}", e);
-            e
-        })?;
-
     info!(
-        "Database connection pool created successfully with {}-{} connections", 
-        settings.min_connections, 
-        settings.max_connections
+        "Database connection pool created successfully with {}-{} connections",
+        settings.min_connections, settings.max_connections
     );
     Ok(pool)
 }

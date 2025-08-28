@@ -8,17 +8,6 @@ use actix_web::{get, post, web, HttpResponse};
 use sqlx::PgPool;
 use validator::Validate;
 
-#[utoipa::path(
-    post,
-    path = "/api/v1/auth/register",
-    tag = "auth",
-    request_body = RegisterRequest,
-    responses(
-        (status = 201, description = "User registered successfully", body = AuthApiResponse),
-        (status = 400, description = "Invalid input data"),
-        (status = 409, description = "User already exists")
-    )
-)]
 #[post("/register")]
 pub async fn register(
     pool: web::Data<PgPool>,
@@ -31,17 +20,6 @@ pub async fn register(
     Ok(HttpResponse::Created().json(AuthApiResponse::new(auth_response)))
 }
 
-#[utoipa::path(
-    post,
-    path = "/api/v1/auth/login",
-    tag = "auth",
-    request_body = LoginRequest,
-    responses(
-        (status = 200, description = "Login successful", body = AuthApiResponse),
-        (status = 400, description = "Invalid input data"),
-        (status = 401, description = "Invalid credentials")
-    )
-)]
 #[post("/login")]
 pub async fn login(
     pool: web::Data<PgPool>,
@@ -54,17 +32,6 @@ pub async fn login(
     Ok(HttpResponse::Ok().json(AuthApiResponse::new(auth_response)))
 }
 
-#[utoipa::path(
-    post,
-    path = "/api/v1/auth/logout",
-    tag = "auth",
-    security(
-        ("bearer_auth" = [])
-    ),
-    responses(
-        (status = 200, description = "Logout successful"),
-        (status = 401, description = "Unauthorized")
-    )
 )]
 #[post("/logout")]
 pub async fn logout(_user: AuthenticatedUser) -> Result<HttpResponse, AppError> {
@@ -73,18 +40,6 @@ pub async fn logout(_user: AuthenticatedUser) -> Result<HttpResponse, AppError> 
     Ok(HttpResponse::Ok().json(ApiResponse::new("Logged out successfully")))
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/auth/profile",
-    tag = "auth",
-    security(
-        ("bearer_auth" = [])
-    ),
-    responses(
-        (status = 200, description = "User profile retrieved successfully", body = UserApiResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 404, description = "User not found")
-    )
 )]
 #[get("/profile")]
 pub async fn profile(

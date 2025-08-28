@@ -1,25 +1,23 @@
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: Arc<RwLock<Option<PgPool>>>,
+    pub db: Option<Arc<PgPool>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
-            db: Arc::new(RwLock::new(None)),
+            db: None,
         }
     }
 
-    pub async fn set_db_pool(&self, pool: PgPool) {
-        let mut db = self.db.write().await;
-        *db = Some(pool);
+    pub fn set_db_pool(&mut self, pool: PgPool) {
+        self.db = Some(Arc::new(pool));
     }
 
-    pub async fn get_db_pool(&self) -> Option<PgPool> {
-        self.db.read().await.clone()
+    pub fn get_db_pool(&self) -> Option<Arc<PgPool>> {
+        self.db.as_ref().map(Arc::clone)
     }
 }

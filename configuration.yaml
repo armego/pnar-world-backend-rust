@@ -1,61 +1,98 @@
+# PNAR World API Configuration
+# Comprehensive configuration for development and production environments
+
 application:
+  # Server configuration
   host: '127.0.0.1'
   port: 8000
   base_url: 'http://localhost:8000'
   request_timeout_seconds: 30
-  max_request_size: 1048576 # 1MB
-  workers: null # Auto-detect based on CPU cores
+  max_request_size: 1048576 # 1MB in bytes
+  workers: null # Auto-detect based on CPU cores (recommended)
+
+  # CORS configuration
   cors:
-    allowed_origins: ['*']
+    allowed_origins: ['*'] # WARNING: Restrict in production!
     allowed_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
     allowed_headers: ['Content-Type', 'Authorization', 'X-Requested-With']
     allow_credentials: true
-    max_age: 3600
+    max_age: 3600 # 1 hour
 
 database:
+  # Connection settings
   username: 'postgres'
-  password: 'root'
+  password: 'root' # WARNING: Use environment variable in production!
   port: 5432
   host: '127.0.0.1'
   database_name: 'pnar_world'
-  require_ssl: false
+  require_ssl: false # Enable in production!
+
+  # Connection pool settings
   max_connections: 10
   min_connections: 1
   connect_timeout_seconds: 10
-  idle_timeout_seconds: 600
-  max_lifetime_seconds: 1800
+  idle_timeout_seconds: 600 # 10 minutes
+  max_lifetime_seconds: 1800 # 30 minutes
 
 jwt:
-  secret: 'your-secret-key-here-change-me-in-production'
+  # JWT configuration
+  secret: 'your-secret-key-here-change-me-in-production' # WARNING: Use environment variable!
   expires_in_minutes: 60
   refresh_expires_in_days: 7
+
+  # Cookie settings
   cookie_name: 'auth_token'
   cookie_domain: null
-  cookie_secure: false
+  cookie_secure: false # Enable in production with HTTPS!
   cookie_http_only: true
   cookie_same_site: 'Lax'
 
 logging:
-  level: 'info'
-  format: 'json'
-  file_path: null
+  # Logging configuration
+  level: 'info' # Options: trace, debug, info, warn, error
+  format: 'json' # Options: json, compact, pretty
+  file_path: null # Set to enable file logging
   max_file_size_mb: 100
   max_files: 5
 
 security:
+  # Rate limiting
   rate_limit_requests_per_minute: 60
   rate_limit_burst: 10
+
+  # Password policy
   password_min_length: 8
   password_require_special_chars: true
   password_require_numbers: true
   password_require_uppercase: true
+
+  # Session management
   session_timeout_minutes: 60
   max_login_attempts: 5
   lockout_duration_minutes: 15
-  trusted_proxies: []
+
+  # Network security
+  trusted_proxies: [] # Add proxy IPs in production
 
 monitoring:
+  # Application monitoring
   metrics_enabled: true
   health_check_interval_seconds: 30
   performance_monitoring: true
   error_reporting: true
+# Environment-specific overrides
+# These can be overridden by environment variables or separate config files
+# Production overrides (uncomment and modify for production)
+# application:
+#   host: '0.0.0.0'
+#   cors:
+#     allowed_origins: ['https://yourdomain.com']
+# database:
+#   require_ssl: true
+#   password: '${DATABASE_PASSWORD}'
+# jwt:
+#   secret: '${JWT_SECRET}'
+#   cookie_secure: true
+# logging:
+#   level: 'warn'
+#   file_path: '/var/log/pnar-world-api.log'

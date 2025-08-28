@@ -3,7 +3,6 @@ use crate::{
         dictionary::{
             CreateDictionaryEntryRequest, SearchDictionaryRequest, UpdateDictionaryEntryRequest,
         },
-        responses::ApiResponse,
     },
     error::AppError,
     middleware::{
@@ -15,7 +14,6 @@ use crate::{
 use actix_web::{delete, get, post, put, web, HttpResponse};
 use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -26,20 +24,6 @@ pub struct PaginationQuery {
 }
 
 /// Create a new dictionary entry
-#[utoipa::path(
-    post,
-    path = "/api/v1/dictionary",
-    tag = "dictionary",
-    security(("bearer_auth" = [])),
-    request_body = CreateDictionaryEntryRequest,
-    responses(
-        (status = 201, description = "Dictionary entry created successfully", body = DictionaryEntryResponse),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin role required"),
-        (status = 409, description = "Dictionary entry already exists"),
-        (status = 422, description = "Validation error")
-    )
 )]
 #[post("")]
 pub async fn create_entry(
@@ -55,17 +39,7 @@ pub async fn create_entry(
 }
 
 /// Get a dictionary entry by ID
-#[utoipa::path(
-    get,
-    path = "/api/v1/dictionary/{id}",
-    tag = "dictionary",
     params(
-        ("id" = Uuid, Path, description = "Dictionary entry ID")
-    ),
-    responses(
-        (status = 200, description = "Dictionary entry retrieved successfully", body = DictionaryEntryResponse),
-        (status = 404, description = "Dictionary entry not found")
-    )
 )]
 #[get("/{id}")]
 pub async fn get_entry(
@@ -89,24 +63,12 @@ pub async fn get_entry(
         session_id,
         ip_address,
         user_agent,
-    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entry)))
 }
 
 /// List dictionary entries with pagination
-#[utoipa::path(
-    get,
-    path = "/api/v1/dictionary",
-    tag = "dictionary",
     params(
-        ("page" = Option<i64>, Query, description = "Page number (default: 1)"),
-        ("per_page" = Option<i64>, Query, description = "Items per page (default: 20, max: 100)")
-    ),
-    responses(
-        (status = 200, description = "Dictionary entries retrieved successfully", body = DictionaryPaginatedResponse),
-        (status = 400, description = "Bad request")
-    )
 )]
 #[get("")]
 pub async fn list_entries(
@@ -122,16 +84,6 @@ pub async fn list_entries(
 }
 
 /// Search dictionary entries
-#[utoipa::path(
-    post,
-    path = "/api/v1/dictionary/search",
-    tag = "dictionary",
-    request_body = SearchDictionaryRequest,
-    responses(
-        (status = 200, description = "Search results retrieved successfully", body = DictionaryPaginatedResponse),
-        (status = 400, description = "Bad request"),
-        (status = 422, description = "Validation error")
-    )
 )]
 #[post("/search")]
 pub async fn search_entries(
@@ -155,29 +107,12 @@ pub async fn search_entries(
         session_id,
         ip_address,
         user_agent,
-    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entries)))
 }
 
 /// Update a dictionary entry
-#[utoipa::path(
-    put,
-    path = "/api/v1/dictionary/{id}",
-    tag = "dictionary",
-    security(("bearer_auth" = [])),
     params(
-        ("id" = Uuid, Path, description = "Dictionary entry ID")
-    ),
-    request_body = UpdateDictionaryEntryRequest,
-    responses(
-        (status = 200, description = "Dictionary entry updated successfully", body = DictionaryEntryResponse),
-        (status = 400, description = "Bad request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Dictionary entry not found"),
-        (status = 422, description = "Validation error")
-    )
 )]
 #[put("/{id}")]
 pub async fn update_entry(
@@ -197,20 +132,7 @@ pub async fn update_entry(
 }
 
 /// Delete a dictionary entry
-#[utoipa::path(
-    delete,
-    path = "/api/v1/dictionary/{id}",
-    tag = "dictionary",
-    security(("bearer_auth" = [])),
     params(
-        ("id" = Uuid, Path, description = "Dictionary entry ID")
-    ),
-    responses(
-        (status = 204, description = "Dictionary entry deleted successfully"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Dictionary entry not found")
-    )
 )]
 #[delete("/{id}")]
 pub async fn delete_entry(
@@ -225,20 +147,7 @@ pub async fn delete_entry(
 }
 
 /// Verify a dictionary entry
-#[utoipa::path(
-    put,
-    path = "/api/v1/dictionary/{id}/verify",
-    tag = "dictionary",
-    security(("bearer_auth" = [])),
     params(
-        ("id" = Uuid, Path, description = "Dictionary entry ID")
-    ),
-    responses(
-        (status = 200, description = "Dictionary entry verified successfully", body = DictionaryEntryResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden"),
-        (status = 404, description = "Dictionary entry not found")
-    )
 )]
 #[put("/{id}/verify")]
 pub async fn verify_entry(

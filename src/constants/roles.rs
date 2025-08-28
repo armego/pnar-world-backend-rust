@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 // Role constants for backward compatibility
 pub const SUPERADMIN: &str = "superadmin";
@@ -9,26 +8,19 @@ pub const CONTRIBUTOR: &str = "contributor";
 pub const USER: &str = "user";
 
 /// User role information
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleInfo {
-    #[schema(example = "admin")]
     pub role_id: &'static str,
-    #[schema(example = "Administrator")]
     pub display_name: &'static str,
-    #[schema(example = "Full system administration privileges")]
     pub description: &'static str,
-    #[schema(example = 5)]
     pub hierarchy_level: u8,
-    #[schema(example = true)]
     pub can_manage_users: bool,
-    #[schema(example = true)]
     pub can_manage_dictionary: bool,
-    #[schema(example = true)]
     pub can_manage_translations: bool,
 }
 
 /// User role enum for type safety
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UserRole {
     #[serde(rename = "superadmin")]
     SuperAdmin,

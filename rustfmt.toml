@@ -1,4 +1,65 @@
+# Rust Code Formatting Configuration
+# Comprehensive formatting rules for PNAR World API
+
+# Basic formatting
+edition = "2021"
 format_strings = true
-struct_field_align_threshold = 20
+hex_literal_case = "Lower"
+indent_style = "Block"
+normalize_comments = true
+normalize_doc_attributes = true
+remove_nested_parens = true
+tab_spaces = 4
 use_field_init_shorthand = true
 use_try_shorthand = true
+
+# Struct and enum formatting
+brace_style = "SameLineWhere"
+control_brace_style = "AlwaysSameLine"
+empty_item_single_line = true
+enum_discrim_align_threshold = 20
+match_arm_blocks = false
+match_arm_leading_pipes = "Never"
+struct_field_align_threshold = 20
+struct_lit_single_line = false
+struct_lit_width = 60
+
+# Function and method formatting
+fn_args_layout = "Tall"
+fn_single_line = false
+overflow_delimited_expr = true
+where_single_line = false
+
+# Import formatting
+imports_granularity = "Module"
+imports_indent = "Block"
+imports_layout = "Mixed"
+reorder_imports = true
+reorder_modules = true
+
+# Comment formatting
+comment_width = 100
+wrap_comments = true
+
+# Macro formatting
+format_macro_bodies = true
+format_macro_matchers = true
+
+# Attribute formatting
+format_code_in_doc_comments = true
+
+# Line width and spacing
+max_width = 100
+attr_fn_like_width = 70
+chain_width = 60
+single_line_if_else_max_width = 50
+single_line_let_else_max_width = 50
+
+# Miscellaneous
+binop_separator = "Back"
+blank_lines_lower_bound = 0
+blank_lines_upper_bound = 1
+hard_tabs = false
+newline_style = "Unix"
+spaces_around_ranges = false
+type_punctuation_density = "Wide"

@@ -1,7 +1,6 @@
 use crate::{
     dto::{
         book::{BookQueryParams, CreateBookRequest, UpdateBookRequest},
-        responses::{ApiResponse, SuccessResponse},
     },
     error::AppError,
     middleware::auth::AuthenticatedUser,
@@ -14,22 +13,6 @@ use uuid::Uuid;
 use validator::Validate;
 
 /// Create a new book
-#[utoipa::path(
-    post,
-    path = "/api/v1/books",
-    tag = "books",
-    request_body = CreateBookRequest,
-    responses(
-        (status = 201, description = "Book created successfully", body = crate::dto::book::BookResponse),
-        (status = 400, description = "Invalid input data"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Contributor access required"),
-        (status = 409, description = "Book with this ISBN already exists")
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
-)]
 #[post("")]
 pub async fn create_book(
     pool: web::Data<PgPool>,
@@ -39,7 +22,6 @@ pub async fn create_book(
     if !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "Book creation requires admin privileges",
-        ));
     }
 
     request.validate()?;
@@ -48,17 +30,7 @@ pub async fn create_book(
 }
 
 /// Get a book by ID
-#[utoipa::path(
-    get,
-    path = "/api/v1/books/{id}",
-    tag = "books",
     params(
-        ("id" = Uuid, Path, description = "Book ID")
-    ),
-    responses(
-        (status = 200, description = "Book retrieved successfully", body = crate::dto::book::BookResponse),
-        (status = 404, description = "Book not found")
-    )
 )]
 #[get("/{id}")]
 pub async fn get_book(
@@ -77,7 +49,6 @@ pub async fn get_book(
         if book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
             return Err(AppError::Forbidden(
                 "You don't have permission to view this private book",
-            ));
         }
     }
 
@@ -85,15 +56,7 @@ pub async fn get_book(
 }
 
 /// List books with pagination and filtering
-#[utoipa::path(
-    get,
-    path = "/api/v1/books",
-    tag = "books",
     params(BookQueryParams),
-    responses(
-        (status = 200, description = "Books retrieved successfully", body = crate::dto::responses::BookPaginatedResponse),
-        (status = 400, description = "Invalid query parameters")
-    )
 )]
 #[get("")]
 pub async fn list_books(
@@ -113,25 +76,7 @@ pub async fn list_books(
 }
 
 /// Update a book
-#[utoipa::path(
-    put,
-    path = "/api/v1/books/{id}",
-    tag = "books",
     params(
-        ("id" = Uuid, Path, description = "Book ID")
-    ),
-    request_body = UpdateBookRequest,
-    responses(
-        (status = 200, description = "Book updated successfully", body = crate::dto::book::BookResponse),
-        (status = 400, description = "Invalid input data"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Insufficient permissions"),
-        (status = 404, description = "Book not found"),
-        (status = 409, description = "Book with this ISBN already exists")
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
 )]
 #[put("/{id}")]
 pub async fn update_book(
@@ -148,7 +93,6 @@ pub async fn update_book(
     if existing_book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "You can only update your own books or need admin privileges",
-        ));
     }
 
     let updated_book = book_service::update_book(&pool, book_id, request.into_inner(), auth_user.user_id).await?;
@@ -156,22 +100,7 @@ pub async fn update_book(
 }
 
 /// Delete a book
-#[utoipa::path(
-    delete,
-    path = "/api/v1/books/{id}",
-    tag = "books",
     params(
-        ("id" = Uuid, Path, description = "Book ID")
-    ),
-    responses(
-        (status = 200, description = "Book deleted successfully"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Insufficient permissions"),
-        (status = 404, description = "Book not found")
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
 )]
 #[delete("/{id}")]
 pub async fn delete_book(
@@ -185,7 +114,6 @@ pub async fn delete_book(
     if existing_book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "You can only delete your own books or need admin privileges",
-        ));
     }
 
     book_service::delete_book(&pool, book_id).await?;
@@ -193,19 +121,7 @@ pub async fn delete_book(
 }
 
 /// Get books by current user
-#[utoipa::path(
-    get,
-    path = "/api/v1/books/mine",
-    tag = "books",
     params(BookQueryParams),
-    responses(
-        (status = 200, description = "User's books retrieved successfully", body = crate::dto::responses::BookPaginatedResponse),
-        (status = 401, description = "Unauthorized"),
-        (status = 400, description = "Invalid query parameters")
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
 )]
 #[get("/mine")]
 pub async fn get_my_books(
@@ -226,7 +142,6 @@ pub async fn get_my_books(
         books.pagination.page,
         books.pagination.per_page,
         books.pagination.total,
-    );
 
     Ok(HttpResponse::Ok().json(filtered_response))
 }

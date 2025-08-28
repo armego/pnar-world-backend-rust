@@ -2,26 +2,17 @@ use crate::{database, error::AppError, state::AppState};
 use actix_web::{get, web, HttpResponse};
 use serde_json::json;
 use std::time::Instant;
-use utoipa;
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/health",
-    tag = "health",
-    responses(
-        (status = 200, description = "Service is healthy"),
-        (status = 503, description = "Service is unhealthy")
-    )
 )]
 #[get("/health")]
 pub async fn health_check(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let start_time = Instant::now();
     let version = env!("CARGO_PKG_VERSION");
-    let db = state.db.read().await;
+    let db = state.get_db_pool();
 
-    match db.as_ref() {
+    match db {
         Some(pool) => {
-            match database::health_check(pool).await {
+            match database::health_check(&pool).await {
                 Ok(db_health) => {
                     let total_time = start_time.elapsed();
                     
@@ -89,23 +80,15 @@ pub async fn health_check(state: web::Data<AppState>) -> Result<HttpResponse, Ap
     }
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/health/ready",
-    tag = "health",
-    responses(
-        (status = 200, description = "Service is ready"),
-        (status = 503, description = "Service is not ready")
-    )
 )]
 #[get("/ready")]
 pub async fn readiness_check(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
-    let db = state.db.read().await;
+    let db = state.get_db_pool();
 
-    match db.as_ref() {
+    match db {
         Some(pool) => {
             // Check if database is ready for queries
-            match database::check_database_readiness(pool).await {
+            match database::check_database_readiness(&pool).await {
                 Ok(_) => {
                     tracing::debug!("Readiness check passed");
                     Ok(HttpResponse::Ok().json(json!({
@@ -134,13 +117,6 @@ pub async fn readiness_check(state: web::Data<AppState>) -> Result<HttpResponse,
     }
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/health/live",
-    tag = "health",
-    responses(
-        (status = 200, description = "Service is alive")
-    )
 )]
 #[get("/live")]
 pub async fn liveness_check() -> Result<HttpResponse, AppError> {
@@ -152,19 +128,11 @@ pub async fn liveness_check() -> Result<HttpResponse, AppError> {
     })))
 }
 
-#[utoipa::path(
-    get,
-    path = "/api/v1/metrics",
-    tag = "monitoring",
-    responses(
-        (status = 200, description = "Application metrics"),
-        (status = 503, description = "Metrics unavailable")
-    )
 )]
 #[get("/metrics")]
 pub async fn metrics(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let start_time = Instant::now();
-    let db = state.db.read().await;
+    let db = state.get_db_pool();
 
     let mut metrics = json!({
         "timestamp": chrono::Utc::now().to_rfc3339(),

@@ -5,27 +5,22 @@ use tracing::{info, error};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize the logging subscriber of the application.
-    let log_level = if std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".into()) == "production" {
-        "warn".into()
-    } else {
-        "info".into()
-    };
-    let subscriber = create_logging_subscriber("api".into(), log_level);
+    // Determine environment and log levels
+    let is_production = std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".into()) == "production";
+    let log_level = if is_production { "warn" } else { "info" };
+    let rust_log_level = if is_production { "actix_web=warn" } else { "actix_web=info" };
+
+    // Initialize logging
+    let subscriber = create_logging_subscriber("api".into(), log_level.into());
     init_sub(subscriber);
 
     if std::env::var_os("RUST_LOG").is_none() {
-        let rust_log_level = if std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".into()) == "production" {
-            "actix_web=warn"
-        } else {
-            "actix_web=info"
-        };
         std::env::set_var("RUST_LOG", rust_log_level);
     }
 
     info!("Starting PNAR World API v{}", env!("CARGO_PKG_VERSION"));
 
-    // Load the application configuration
+    // Load configuration
     let settings: Settings = get_configuration()
         .map_err(|e| {
             error!("Failed to read application configuration: {}", e);
@@ -35,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Configuration loaded successfully");
     info!("Server will bind to {}:{}", settings.application.host, settings.application.port);
 
-    // Create and run the application - this will fail fast if database is not ready
+    // Create and run the application
     let application = match Application::build(settings.clone()).await {
         Ok(app) => app,
         Err(e) => {
@@ -48,9 +43,9 @@ async fn main() -> anyhow::Result<()> {
     let port = application.port();
     info!("PNAR World API is ready and listening on port {}", port);
     info!("Health check available at: http://localhost:{}/api/v1/health", port);
-    
-    // Only show Swagger URL in development
-    if !settings.is_production() {
+
+    // Show Swagger URL only in development
+    if !is_production {
         info!("API documentation available at: http://localhost:{}/swagger-ui/index.html", port);
     }
 

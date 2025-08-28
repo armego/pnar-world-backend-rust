@@ -1,13 +1,12 @@
 use crate::{
-    config::Settings, 
-    database::create_connection_pool, 
-    error::{AppResult, AppError}, 
+    config::Settings,
+    database::create_connection_pool,
+    error::{AppResult, AppError},
     handlers,
     middleware::{
-        auth::AuthMiddleware, 
+        auth::AuthMiddleware,
         security::{SecurityHeaders, RequestId}
     },
-    openapi::ApiDoc, 
     state::AppState,
 };
 use actix_cors::Cors;
@@ -15,11 +14,8 @@ use actix_web::{
     middleware::{Logger, NormalizePath},
     web, App, HttpServer,
 };
-use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing::{info, warn};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 pub struct Application {
     port: u16,
@@ -28,32 +24,20 @@ pub struct Application {
 
 impl Application {
     pub async fn build(settings: Settings) -> AppResult<Self> {
-        let app_state = web::Data::new(AppState::new());
-        
-        // Create database connection pool - fail fast if unable to connect
+        // Create database connection pool - assume DB is running
         info!("Establishing database connection...");
         let pool = create_connection_pool(&settings.database).await
             .map_err(|e| {
                 tracing::error!("Failed to connect to database: {}", e);
                 AppError::Internal(format!("Database connection failed: {}", e))
             })?;
-        
-        info!("Database connection established successfully");
-        
-        // Validate database schema - ensure required tables exist
-        info!("Validating database schema...");
-        validate_database_schema(&pool).await
-            .map_err(|e| {
-                tracing::error!("Database schema validation failed: {}", e);
-                AppError::Internal(format!("Database schema validation failed: {}", e))
-            })?;
-        
-        info!("Database schema validation passed");
-        
-        // Set the database pool in app state
-        app_state.set_db_pool(pool.clone()).await;
 
-        let address = settings.application.get_address();
+        info!("Database connection established successfully");
+
+        // Create app state with database pool already set
+        let mut app_state = AppState::new();
+        app_state.set_db_pool(pool);
+        let app_state = web::Data::new(app_state);        let address = settings.application.get_address();
         let listener = TcpListener::bind(&address)?;
         let port = listener.local_addr().unwrap().port();
 
@@ -76,15 +60,15 @@ async fn run(
     app_state: web::Data<AppState>,
     settings: Settings,
 ) -> AppResult<actix_web::dev::Server> {
-    let settings_data = web::Data::new(settings.clone());
+    let settings_data = web::Data::new(settings);
 
-    let pool_data = match app_state.get_db_pool().await {
-        Some(pool) => web::Data::new(pool),
+    let pool_data = match app_state.get_db_pool() {
+        Some(pool) => web::Data::new((*pool).clone()),
         None => return Err(AppError::Internal("Database connection not available".to_string())),
     };
 
     // Configure workers based on settings or CPU count
-    let workers = settings.application.workers.unwrap_or_else(|| {
+    let workers = settings_data.application.workers.unwrap_or_else(|| {
         let cpu_count = num_cpus::get();
         std::cmp::max(1, cpu_count)
     });
@@ -94,7 +78,7 @@ async fn run(
     let server = HttpServer::new(move || {
         let cors = configure_cors(&settings_data.application.cors, settings_data.is_production());
         let is_dev = !settings_data.is_production();
-        
+
         let mut app = App::new()
             .app_data(app_state.clone())
             .app_data(settings_data.clone())
@@ -108,27 +92,7 @@ async fn run(
             .wrap(cors)
             .wrap(Logger::default()); // Keep logging for now
 
-        // Add OpenAPI/Swagger only in development
-        if is_dev {
-            let openapi = ApiDoc::openapi();
-            app = app
-                .service(
-                    SwaggerUi::new("/swagger-ui/{_:.*}")
-                        .url("/api-doc/openapi.json", openapi.clone())
-                        .config(utoipa_swagger_ui::Config::default()
-                            .display_request_duration(true)
-                            .try_it_out_enabled(true)
-                        )
-                )
-                .route(
-                    "/docs",
-                    web::get().to(|| async {
-                        actix_web::HttpResponse::Found()
-                            .append_header(("Location", "/swagger-ui/index.html"))
-                            .finish()
-                    }),
-                );
-        }
+        // Swagger removed - use simple-api-docs.html instead
 
         app.service(
                 web::scope("/api/v1")
@@ -350,77 +314,4 @@ fn configure_cors(cors_settings: &crate::config::CorsSettings, is_production: bo
     }
 
     cors
-}
-
-/// Validates that all required database tables exist and are accessible
-async fn validate_database_schema(pool: &PgPool) -> AppResult<()> {
-    use tracing::debug;
-    
-    // List of required tables for the application
-    let required_tables = vec![
-        "user_role",
-        "users", 
-        "pnar_dictionary",
-        "translation_requests",
-        "user_contributions",
-        "word_usage_analytics",
-        "notifications",
-        "pnar_alphabets"
-    ];
-    
-    debug!("Checking for required database tables...");
-    
-    for table_name in required_tables {
-        let query = format!(
-            "SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name = '{}'
-            )",
-            table_name
-        );
-        
-        let exists: (bool,) = sqlx::query_as(&query)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to check table '{}': {}", table_name, e)))?;
-        
-        if !exists.0 {
-            return Err(AppError::Internal(format!("Required table '{}' does not exist", table_name)));
-        }
-        
-        debug!("✓ Table '{}' exists", table_name);
-    }
-    
-    // Validate that we can perform basic operations on critical tables
-    debug!("Validating table accessibility...");
-    
-    // Test users table
-    let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to access users table: {}", e)))?;
-    debug!("✓ Users table accessible (contains {} records)", user_count.0);
-    
-    // Test dictionary table
-    let dict_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM pnar_dictionary")
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to access pnar_dictionary table: {}", e)))?;
-    debug!("✓ Dictionary table accessible (contains {} records)", dict_count.0);
-    
-    // Test roles table
-    let role_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM user_role")
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to access user_role table: {}", e)))?;
-    debug!("✓ User roles table accessible (contains {} records)", role_count.0);
-    
-    // Ensure we have the basic roles
-    if role_count.0 < 6 {
-        return Err(AppError::Internal("Missing required user roles in database".to_string()));
-    }
-    
-    info!("Database schema validation completed successfully");
-    Ok(())
 }

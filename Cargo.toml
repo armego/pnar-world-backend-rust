@@ -68,22 +68,10 @@ thiserror = "1.0"
 # Validation
 validator = { version = "0.18", features = ["derive"] }
 
-# OpenAPI / Swagger
-utoipa = { version = "4.2", features = ["actix_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "6.0", features = ["actix-web"] }
+# OpenAPI / Swagger - Removed for simpler alternatives
 
 # System monitoring
 num_cpus = "1.16"
-
-# Additional security
-sha2 = "0.10"
-base64 = "0.22"
-
-# Performance monitoring
-tokio-metrics = "0.3"
-
-# Environment detection
-once_cell = "1.19"
 
 # Production optimizations
 [profile.release]
@@ -100,6 +88,8 @@ strip = true           # Remove symbols for smaller binary
 opt-level = 0          # Fast compilation
 debug = true           # Include debug info
 overflow-checks = true # Safety in development
+incremental = true     # Enable incremental compilation
+codegen-units = 16     # More codegen units for faster compilation
 
 # Test profile
 [profile.test]

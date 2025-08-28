@@ -1,18 +1,12 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 /// Pnar alphabet character mapping
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PnarCharacter {
-    #[schema(example = "æ")]
     pub small: &'static str,
-    #[schema(example = "Æ")]
     pub capital: &'static str,
-    #[schema(example = "se")]
     pub kbf_small: &'static str,
-    #[schema(example = "Ae")]
     pub kbf_capital: &'static str,
-    #[schema(example = 6)]
     pub sort_order: u8,
 }
 
