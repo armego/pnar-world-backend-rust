@@ -7,6 +7,8 @@ A comprehensive Postman collection for testing the PNAR World API endpoints with
 - **`PNAR-API.postman_collection.json`** - Complete API collection with all endpoints
 - **`PNAR-API.postman_environment.json`** - Environment variables for easy configuration
 - **`Postman-README.md`** - Basic setup instructions
+- **`README.md`** - Comprehensive usage guide (this file)
+- **`demo-postman.sh`** - Demo script comparing Postman vs manual curl
 
 ## 🚀 Quick Start
 
@@ -284,6 +286,20 @@ pm.environment.set('test_email', randomEmail);
 - [Postman Documentation](https://learning.postman.com/)
 - [PNAR World API Docs](../API-README.md)
 - [Development Guide](../DEV-README.md)
+
+## 🎬 Demo Script
+
+Run the demo script to see the difference between using Postman vs manual curl commands:
+
+```bash
+# Run the demo comparison
+./demo-postman.sh
+```
+
+This script shows:
+- ✅ **Postman workflow**: Import → Configure → Test instantly
+- ❌ **Manual curl workflow**: Write commands → Handle auth → Parse responses
+- 📊 **Comparison**: Why Postman is more efficient for API development
 
 ## 🤝 Contributing
 
