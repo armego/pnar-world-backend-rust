@@ -177,8 +177,8 @@ cargo test -- --nocapture
 
 Use the provided Postman collection:
 
-- Import `PNAR-API.postman_collection.json`
-- Set environment to `PNAR-API.postman_environment.json`
+- Import `postman/PNAR-API.postman_collection.json`
+- Set environment to `postman/PNAR-API.postman_environment.json`
 - Update base URL to `http://localhost:8000`
 
 ## 🔍 Debugging
