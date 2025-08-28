@@ -1,6 +1,8 @@
 # PNAR World API 🌍
 
-A modern, production-ready REST API for the Pnar language dictionary and translation service. Built with Rust, Actix-web, and PostgreSQL.
+A modern, production-ready REST API for the Pnar language dictionary and translation service. Built wi| `./scripts/dev.sh`      | 🚀 **Full development**  | PostgreSQL + Adminer + API + migrations |
+| `./scripts/stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL       |
+| `./scripts/reset-db.sh` | 💥 **Reset database**    | Drop & recreate DB, run migrations      |Rust, Actix-web, and PostgreSQL.
 
 [![Rust](https://img.shields.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -65,7 +67,7 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 
 ```bash
 # Start everything: PostgreSQL, migrations, Adminer, and your API
-./dev.sh
+./scripts/dev.sh
 
 # Access points:
 # - API: http://localhost:8000
@@ -99,7 +101,7 @@ cargo run
 
 ```bash
 # Stop all services
-./stop-dev.sh
+./scripts/stop-dev.sh
 
 # Or manually:
 # - Stop API: Ctrl+C in terminal
@@ -130,15 +132,15 @@ cargo run
 
 ```bash
 # Development workflow
-./dev.sh                     # Start everything automatically
+./scripts/dev.sh                     # Start everything automatically
 # API available at http://localhost:8000
 # Adminer at http://localhost:8080
 
 # Reset database (WARNING: deletes all data)
-./reset-db.sh
+./scripts/reset-db.sh
 
 # Stop everything
-./stop-dev.sh
+./scripts/stop-dev.sh
 
 # Run API only (if DB is already running)
 cargo run

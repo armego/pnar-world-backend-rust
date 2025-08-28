@@ -14,7 +14,7 @@ git clone <repository-url>
 cd pnar-world-backend-rust
 
 # Start full development environment
-./dev.sh
+./scripts/dev.sh
 
 # Access points:
 # - API: http://localhost:8000
@@ -64,7 +64,7 @@ sudo systemctl enable postgresql
 
 ### 1. Database Setup
 
-The `./dev.sh` script automatically:
+The `./scripts/dev.sh` script automatically:
 
 - ✅ Installs PostgreSQL (if missing)
 - ✅ Creates `pnar_world` database
@@ -97,7 +97,7 @@ export JWT_SECRET=your-secure-secret-here
 
 ```bash
 # Full development environment (recommended)
-./dev.sh
+./scripts/dev.sh
 
 # Or run API only (if database is already running)
 cargo run
@@ -130,9 +130,9 @@ psql -h localhost -U postgres -d pnar_world
 
 | Script          | Description                                   |
 | --------------- | --------------------------------------------- |
-| `./dev.sh`      | 🚀 Start full development environment         |
-| `./stop-dev.sh` | 🛑 Stop all development services              |
-| `./reset-db.sh` | 💥 Reset database (WARNING: deletes all data) |
+| `./scripts/dev.sh`      | 🚀 Start full development environment         |
+| `./scripts/stop-dev.sh` | 🛑 Stop all development services              |
+| `./scripts/reset-db.sh` | 💥 Reset database (WARNING: deletes all data) |
 | `cargo run`     | ⚡ Run API only                               |
 | `cargo test`    | 🧪 Run tests                                  |
 | `cargo check`   | ✅ Check code without building                |
@@ -145,7 +145,7 @@ psql -h localhost -U postgres -d pnar_world
 
 ```bash
 # Automatic (via dev.sh)
-./dev.sh
+./scripts/dev.sh
 
 # Manual migration
 DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
@@ -158,7 +158,7 @@ sqlx migrate add create_users_table
 
 ```bash
 # WARNING: This deletes ALL data
-./reset-db.sh
+./scripts/reset-db.sh
 ```
 
 ### Database Schema
@@ -253,7 +253,7 @@ brew services list | grep postgresql
 brew services start postgresql
 
 # Reset database
-./reset-db.sh
+./scripts/reset-db.sh
 ```
 
 **Port Already in Use:**
@@ -273,7 +273,7 @@ PORT=8001 cargo run
 
 ```bash
 # Reset and re-run migrations
-./reset-db.sh
+./scripts/reset-db.sh
 
 # Check migration status
 sqlx migrate info

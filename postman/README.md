@@ -278,7 +278,7 @@ pm.environment.set('test_email', randomEmail);
 ### Connection Refused
 
 - **Solution**: Start the development server
-- **Command**: `./dev.sh`
+- **Command**: `./scripts/dev.sh`
 
 ## 📖 Additional Resources
 
