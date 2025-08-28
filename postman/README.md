@@ -284,7 +284,7 @@ pm.environment.set('test_email', randomEmail);
 
 - [Postman Documentation](https://learning.postman.com/)
 - [PNAR World API Docs](../README.md)
-- [Development Guide](../DEV-README.md)
+- [Development Guide](../README.md)
 
 ## 🎬 Demo Script
 

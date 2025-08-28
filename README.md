@@ -1,12 +1,9 @@
 # PNAR World API 🌍
 
-A modern, production-ready REST API for the Pnar language dictionary and translation service. Built wi| `./scripts/dev.sh`      | 🚀 **Full development**  | PostgreSQL + Adminer + API + migrations |
-| `./scripts/stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL       |
-| `./scripts/reset-db.sh` | 💥 **Reset database**    | Drop & recreate DB, run migrations      |Rust, Actix-web, and PostgreSQL.
+A modern, production-ready REST API for the Pnar language dictionary and translation service. Built with Rust, Actix-web, and PostgreSQL.
 
 [![Rust](https://img.shields.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com)
 
 ## 🚀 Features
 
@@ -39,7 +36,7 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
                                                ┌─────────────────┐
                                                │   PostgreSQL    │
                                                │    Database     │
-                                               └─��───────────────┘
+                                               └─────────────────┘
 ```
 
 ## 🛠️ Technology Stack
@@ -48,14 +45,14 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 - **Web Framework**: Actix-web 4.9
 - **Database**: PostgreSQL 15+ with SQLx
 - **Authentication**: JWT with Argon2 password hashing
-- **Documentation**: OpenAPI 3.0 with Swagger UI
-- **Containerization**: Docker/Podman with multi-stage builds
+- **API Testing**: Postman collections with comprehensive examples
+- **Development**: Local PostgreSQL with Adminer for database management
 - **Monitoring**: Built-in health checks and metrics
 
 ## 📋 Prerequisites
 
 - **Rust**: 1.89 or later
-- **PostgreSQL**: 15 or later (installed locally or via Docker)
+- **PostgreSQL**: 15 or later (local installation)
 - **Optional**: Docker (for Adminer database management)
 - **System**: Linux, macOS, or Windows
 
