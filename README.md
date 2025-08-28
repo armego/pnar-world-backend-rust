@@ -2,7 +2,21 @@
 
 A modern, production-ready REST API for the Pnar language dictionary and translation service. Built with Rust, Actix-web, and PostgreSQL.
 
-[![Rust](https://img.shields.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
+[![Rust](https:/## 📖## 📖 Additional Resources
+
+- **API Documentation**: `postman/README.md`
+- **Postman Collection**: `postman/PNAR-API.postman_collection.json`
+- **Database Schema**: `migrations/` directory
+- **Configuration**: `configuration.yaml`
+
+---
+
+**Made with ❤️ for the Pnar language community**al Resources
+
+- **API Documentation**: `postman/README.md`
+- **Postman Collection**: `postman/PNAR-API.postman_collection.json`
+- **Database Schema**: `migrations/` directory
+- **Configuration**: `configuration.yaml`lds.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🚀 Features
@@ -52,32 +66,69 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 ## 📋 Prerequisites
 
 - **Rust**: 1.89 or later
-- **PostgreSQL**: 15 or later (local installation)
-- **Optional**: Docker (for Adminer database management)
+- **PostgreSQL**: 15 or later (must be installed and running)
 - **System**: Linux, macOS, or Windows
+
+### PostgreSQL Setup (macOS)
+
+```bash
+# Install PostgreSQL
+brew install postgresql
+
+# Start PostgreSQL service
+brew services start postgresql
+
+# Create database
+createdb pnar_world
+
+# Create user (optional, or use your system user)
+psql -d postgres -c "CREATE USER postgres WITH PASSWORD 'root';"
+psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
+```
+
+### PostgreSQL Setup (Linux)
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Start service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Setup database
+sudo -u postgres createdb pnar_world
+sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'root';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
+```
 
 ## 🚀 Quick Start
 
-### Local Development Environment
-
-#### One-Command Setup
+### Manual Setup
 
 ```bash
-# Start everything: PostgreSQL, migrations, Adminer, and your API
-./scripts/dev.sh
+# 1. Ensure PostgreSQL is running
+brew services list | grep postgresql
 
-# Access points:
-# - API: http://localhost:8000
-# - Adminer (Database UI): http://localhost:8080
-# - Database: localhost:5432 (postgres/root)
+# 2. Run database migrations
+DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
+
+# 3. Start the API
+cargo run
+
+# API will be available at: http://localhost:8000
 ```
 
-#### Manual Setup (Alternative)
+### Database Management
 
-```bash
-# 1. Install PostgreSQL (if not already installed)
-brew install postgresql
-brew services start postgresql
+Choose your preferred PostgreSQL client:
+
+- **Command Line**: `psql -h localhost -U postgres -d pnar_world`
+- **pgAdmin**: Web-based PostgreSQL administration
+- **DBeaver**: Universal database tool
+- **TablePlus**: Modern database client
+- **Any PostgreSQL GUI client** of your choice
 
 # 2. Setup database
 createdb pnar_world
@@ -87,40 +138,62 @@ psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
 # 3. Run migrations
 DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
 
-# 4. Start Adminer (optional, for database management)
-docker run -d --name pnar-adminer -p 8080:8080 adminer
-
-# 5. Run your API
+# 4. Start the API
 cargo run
+
+# API will be available at: http://localhost:8000
 ```
 
-#### Stop Development Environment
+### Environment Variables
+
+Set these environment variables as needed:
 
 ```bash
-# Stop all services
-./scripts/stop-dev.sh
+# Development mode (default)
+export APP_ENVIRONMENT=development
 
-# Or manually:
-# - Stop API: Ctrl+C in terminal
-# - Stop Adminer: docker stop pnar-adminer && docker rm pnar-adminer
-# - Stop PostgreSQL: brew services stop postgresql
+# Debug logging
+export RUST_LOG=debug
+
+# Custom JWT secret (optional)
+export JWT_SECRET=your-secure-secret-here
 ```
 
-## 📋 Environment Overview
+### Database Management
 
-### Local Development Setup
+Choose your preferred PostgreSQL client:
 
-- **PostgreSQL** database (local installation)
-- **Adminer** web-based database client (via Docker)
-- **Automatic migrations** on startup
-- **Hot reload** for Rust development
-- **Simple setup** focused on backend development
+- **Command Line**: `psql -h localhost -U postgres -d pnar_world`
+- **pgAdmin**: Web-based PostgreSQL administration
+- **DBeaver**: Universal database tool
+- **TablePlus**: Modern database client
+- **Any PostgreSQL GUI client** of your choice
 
-## 🔧 Available Scripts
+## 🧪 Testing
 
-| Script          | Purpose                  | Description                             |
-| --------------- | ------------------------ | --------------------------------------- |
-| `./dev.sh`      | 🚀 **Full development**  | PostgreSQL + Adminer + API + migrations |
+### API Testing with Postman
+
+1. **Import collection**: `postman/PNAR-API.postman_collection.json`
+2. **Import environment**: `postman/PNAR-API.postman_environment.json`
+3. **Select environment**: "PNAR API Environment"
+4. **Test endpoints**: Start with Health Check → Authentication → Core features
+
+### Manual Testing
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# List all endpoints in Postman collection
+cat postman/README.md
+```
+
+## 📖 Additional Resources
+
+- **API Documentation**: `postman/README.md`
+- **Postman Collection**: `postman/PNAR-API.postman_collection.json`
+- **Database Schema**: `migrations/` directory
+- **Configuration**: `configuration.yaml`
 | `./stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL       |
 | `./reset-db.sh` | � **Reset database**     | Drop & recreate DB, run migrations      |
 | `cargo run`     | ⚡ **Run API only**      | Start Rust API (DB must be running)     |
