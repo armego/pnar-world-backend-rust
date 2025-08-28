@@ -17,7 +17,7 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 - **Postman Collection**: `postman/PNAR-API.postman_collection.json`
 - **Database Schema**: `migrations/` directory
 - **Configuration**: `configuration.yaml`lds.io/badge/rust-1.89+-orange.svg)](https://www.rust-lang.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🚀 Features
 
@@ -131,18 +131,22 @@ Choose your preferred PostgreSQL client:
 - **Any PostgreSQL GUI client** of your choice
 
 # 2. Setup database
+
 createdb pnar_world
 psql -d postgres -c "CREATE USER postgres WITH PASSWORD 'root';"
 psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
 
 # 3. Run migrations
+
 DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
 
 # 4. Start the API
+
 cargo run
 
 # API will be available at: http://localhost:8000
-```
+
+````
 
 ### Environment Variables
 
@@ -157,7 +161,7 @@ export RUST_LOG=debug
 
 # Custom JWT secret (optional)
 export JWT_SECRET=your-secure-secret-here
-```
+````
 
 ### Database Management
 
@@ -194,9 +198,9 @@ cat postman/README.md
 - **Postman Collection**: `postman/PNAR-API.postman_collection.json`
 - **Database Schema**: `migrations/` directory
 - **Configuration**: `configuration.yaml`
-| `./stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL       |
-| `./reset-db.sh` | � **Reset database**     | Drop & recreate DB, run migrations      |
-| `cargo run`     | ⚡ **Run API only**      | Start Rust API (DB must be running)     |
+  | `./stop-dev.sh` | 🛑 **Stop all services** | Stop API, Adminer, and PostgreSQL |
+  | `./reset-db.sh` | � **Reset database** | Drop & recreate DB, run migrations |
+  | `cargo run` | ⚡ **Run API only** | Start Rust API (DB must be running) |
 
 ### Script Usage Examples
 
