@@ -74,11 +74,23 @@ The `./dev.sh` script automatically:
 
 ### 2. Environment Configuration
 
-Copy the example environment file:
+The application uses YAML configuration (`configuration.yaml`) for most settings. Environment variables are used for:
+
+- `APP_ENVIRONMENT` - Set to "development" or "production"
+- `RUST_LOG` - Logging level (e.g., "debug", "info")
+- `JWT_SECRET` - JWT signing secret (change in production!)
+
+Set environment variables as needed:
 
 ```bash
-cp .env.example .env
-# Edit .env with your preferred settings
+# Development mode (default)
+export APP_ENVIRONMENT=development
+
+# Debug logging
+export RUST_LOG=debug
+
+# Custom JWT secret
+export JWT_SECRET=your-secure-secret-here
 ```
 
 ### 3. Running the Application

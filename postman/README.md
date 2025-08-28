@@ -283,7 +283,7 @@ pm.environment.set('test_email', randomEmail);
 ## 📖 Additional Resources
 
 - [Postman Documentation](https://learning.postman.com/)
-- [PNAR World API Docs](../API-README.md)
+- [PNAR World API Docs](../README.md)
 - [Development Guide](../DEV-README.md)
 
 ## 🎬 Demo Script
@@ -296,6 +296,7 @@ Run the demo script to see the difference between using Postman vs manual curl c
 ```
 
 This script shows:
+
 - ✅ **Postman workflow**: Import → Configure → Test instantly
 - ❌ **Manual curl workflow**: Write commands → Handle auth → Parse responses
 - 📊 **Comparison**: Why Postman is more efficient for API development
