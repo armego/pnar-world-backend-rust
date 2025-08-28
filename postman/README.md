@@ -6,7 +6,6 @@ A comprehensive Postman collection for testing the PNAR World API endpoints with
 
 - **`PNAR-API.postman_collection.json`** - Complete API collection with all endpoints
 - **`PNAR-API.postman_environment.json`** - Environment variables for easy configuration
-- **`Postman-README.md`** - Basic setup instructions
 - **`README.md`** - Comprehensive usage guide (this file)
 - **`demo-postman.sh`** - Demo script comparing Postman vs manual curl
 
