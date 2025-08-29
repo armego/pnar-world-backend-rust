@@ -5,7 +5,7 @@ use tracing::{info, warn, debug, error};
 
 pub async fn create_connection_pool(settings: &DatabaseSettings) -> AppResult<PgPool> {
     info!("Connecting to database at {}:{}", settings.host, settings.port);
-    debug!("Database: {}, User: {}", settings.database_name, settings.username);
+    debug!("Database: {}, User: {}", settings.database_name, settings.user);
 
     let pool = PgPoolOptions::new()
         .max_connections(settings.max_connections)

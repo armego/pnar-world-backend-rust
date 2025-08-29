@@ -40,7 +40,7 @@ pub struct CorsSettings {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseSettings {
-    pub username: String,
+    pub user: String,
     pub password: Secret<String>,
     pub port: u16,
     pub host: String,
