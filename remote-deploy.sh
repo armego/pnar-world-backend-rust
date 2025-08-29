@@ -185,8 +185,8 @@ fi
 # Skip systemd operations in CI to avoid sudo prompts
 if [ -z "${CI:-}" ] && [ -z "${GITHUB_ACTIONS:-}" ]; then
     echo "Attempting to start service with systemctl --user (non-CI)..."
-    systemctl --user daemon-reload
-    systemctl --user start "$SERVICE"
+    systemctl --user daemon-reload || echo "systemd daemon-reload failed (non-critical)"
+    systemctl --user start "$SERVICE" || echo "systemd start failed (service may not exist yet)"
     echo "To check status: systemctl --user status $SERVICE"
 else
     echo "Skipping systemctl start (CI compatibility mode)"
