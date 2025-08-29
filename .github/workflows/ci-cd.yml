@@ -44,7 +44,8 @@ jobs:
         id: package
         run: |
           mkdir -p out
-          BIN=target/release/pnar-world-backend-rust
+          # Binary name comes from Cargo.toml ([[bin]] name = "pnar-world-api")
+          BIN=target/release/pnar-world-api
           if [ ! -f "$BIN" ]; then
             echo "Binary not found at $BIN"
             exit 1
