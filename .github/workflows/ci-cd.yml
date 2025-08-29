@@ -40,6 +40,9 @@ jobs:
       - name: Build release
         run: cargo build --release --locked
 
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --version=0.7.4 --locked --no-default-features --features rustls,postgres
+
       - name: Package binary
         id: package
         run: |
@@ -52,7 +55,9 @@ jobs:
           fi
           # Preserve the real binary filename (pnar-world-api)
           cp "$BIN" out/pnar-world-api
-          tar -C out -czf pnar-release.tar.gz pnar-world-api
+          # Also copy the sqlx-cli binary
+          cp ~/.cargo/bin/sqlx out/sqlx
+          tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx
           echo "artifact=pnar-release.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
@@ -108,4 +113,4 @@ jobs:
             ls -la
             echo "----------------------------------------"
             chmod +x ./remote-deploy.sh
-            ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" "${{ secrets.DATABASE_USER }}" "${{ secrets.DATABASE_PASSWORD }}" "${{ secrets.JWT_SECRET }}" false
+            ./remote-deploy.sh pnar.service ${{ secrets.RUN_MIGRATIONS || 'false' }} "${{ secrets.DATABASE_URL }}" "${{ secrets.DATABASE_USER }}" "${{ secrets.DATABASE_PASSWORD }}" "${{ secrets.JWT_SECRET }}" false
