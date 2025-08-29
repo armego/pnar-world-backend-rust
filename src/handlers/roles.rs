@@ -7,14 +7,12 @@ use crate::{
 };
 
 /// Get all application roles (Public endpoint)
-)]
 #[get("")]
 pub async fn list_roles() -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().json(get_all_roles()))
 }
 
 /// Get roles that can be assigned by the current user (User Management)
-)]
 #[get("/assignable")]
 pub async fn list_assignable_roles(
     manager_user: ManagerUser, // Only users with management privileges
@@ -24,7 +22,6 @@ pub async fn list_assignable_roles(
 }
 
 /// Get roles that can be managed by the current user (for filtering user lists)
-)]
 #[get("/manageable")]
 pub async fn list_manageable_roles(
     manager_user: ManagerUser, // Only users with management privileges

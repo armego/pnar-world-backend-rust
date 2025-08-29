@@ -1,6 +1,7 @@
 use crate::{
     dto::{
         book::{BookQueryParams, CreateBookRequest, UpdateBookRequest},
+        responses::{ApiResponse, SuccessResponse},
     },
     error::AppError,
     middleware::auth::AuthenticatedUser,
@@ -22,6 +23,7 @@ pub async fn create_book(
     if !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "Book creation requires admin privileges",
+        ));
     }
 
     request.validate()?;
@@ -30,8 +32,6 @@ pub async fn create_book(
 }
 
 /// Get a book by ID
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_book(
     pool: web::Data<PgPool>,
@@ -49,6 +49,7 @@ pub async fn get_book(
         if book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
             return Err(AppError::Forbidden(
                 "You don't have permission to view this private book",
+            ));
         }
     }
 
@@ -56,8 +57,6 @@ pub async fn get_book(
 }
 
 /// List books with pagination and filtering
-    params(BookQueryParams),
-)]
 #[get("")]
 pub async fn list_books(
     pool: web::Data<PgPool>,
@@ -76,8 +75,6 @@ pub async fn list_books(
 }
 
 /// Update a book
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_book(
     pool: web::Data<PgPool>,
@@ -93,6 +90,7 @@ pub async fn update_book(
     if existing_book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "You can only update your own books or need admin privileges",
+        ));
     }
 
     let updated_book = book_service::update_book(&pool, book_id, request.into_inner(), auth_user.user_id).await?;
@@ -100,8 +98,6 @@ pub async fn update_book(
 }
 
 /// Delete a book
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_book(
     pool: web::Data<PgPool>,
@@ -114,6 +110,7 @@ pub async fn delete_book(
     if existing_book.created_by != auth_user.user_id && !authorization::has_minimum_role_level(&auth_user.role, "admin") {
         return Err(AppError::Forbidden(
             "You can only delete your own books or need admin privileges",
+        ));
     }
 
     book_service::delete_book(&pool, book_id).await?;
@@ -121,8 +118,6 @@ pub async fn delete_book(
 }
 
 /// Get books by current user
-    params(BookQueryParams),
-)]
 #[get("/mine")]
 pub async fn get_my_books(
     pool: web::Data<PgPool>,
@@ -142,6 +137,7 @@ pub async fn get_my_books(
         books.pagination.page,
         books.pagination.per_page,
         books.pagination.total,
+    );
 
     Ok(HttpResponse::Ok().json(filtered_response))
 }

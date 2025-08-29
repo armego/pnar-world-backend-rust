@@ -67,45 +67,83 @@ A modern, production-ready REST API for the Pnar language dictionary and transla
 
 - **Rust**: 1.89 or later
 - **PostgreSQL**: 15 or later (must be installed and running)
-- **System**: Linux, macOS, or Windows
+- **Development**: macOS (with Homebrew)
+- **Production**: Linux (target environment)
 
-### PostgreSQL Setup (macOS)
+### macOS Development Setup
 
 ```bash
-# Install PostgreSQL
+# Install PostgreSQL using Homebrew
 brew install postgresql
-
-# Start PostgreSQL service
 brew services start postgresql
 
-# Create database
+# Create database and user
 createdb pnar_world
-
-# Create user (optional, or use your system user)
 psql -d postgres -c "CREATE USER postgres WITH PASSWORD 'root';"
 psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
+
+# Verify connection
+psql -h localhost -U postgres -d pnar_world
+# Type: \q to exit
 ```
 
-### PostgreSQL Setup (Linux)
+### Linux Production Setup
 
 ```bash
-# Ubuntu/Debian
+# Ubuntu/Debian (production target)
 sudo apt update
 sudo apt install postgresql postgresql-contrib
 
-# Start service
+# Start and enable PostgreSQL service
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 
-# Setup database
-sudo -u postgres createdb pnar_world
-sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'root';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
+# Switch to postgres user and setup database
+sudo -u postgres psql
+
+# In PostgreSQL shell:
+CREATE DATABASE pnar_world;
+CREATE USER postgres WITH PASSWORD 'root';
+GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;
+\q
+
+# Verify connection
+psql -h localhost -U postgres -d pnar_world
+# Type: \q to exit
+```
+
+### PostgreSQL Setup (Windows - Development)
+
+```bash
+# Download from: https://www.postgresql.org/download/windows/
+# Run installer and follow setup wizard
+# Set password for 'postgres' user to 'root'
+# Create database 'pnar_world' during setup or manually
 ```
 
 ## 🚀 Quick Start
 
+### Automated Setup Scripts
+
+#### macOS Development (Your Current Environment)
+
+```bash
+# Quick automated setup for macOS
+chmod +x setup-macos.sh
+./setup-macos.sh
+```
+
+#### Linux Production (Your Target Environment)
+
+```bash
+# Automated production setup for Linux
+chmod +x setup-linux.sh
+./setup-linux.sh
+```
+
 ### Manual Setup
+
+#### macOS Development Setup
 
 ```bash
 # 1. Ensure PostgreSQL is running
@@ -119,6 +157,25 @@ cargo run
 
 # API will be available at: http://localhost:8000
 ```
+
+#### Linux Production Setup
+
+```bash
+# 1. Ensure PostgreSQL is running
+sudo systemctl status postgresql
+
+# 2. Run database migrations
+DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
+
+# 3. Start the API
+cargo run
+
+# API will be available at: http://localhost:8000
+```
+
+### Cross-Platform Setup
+
+The same setup works on all platforms - just adjust the PostgreSQL installation method for your OS.
 
 ### Database Management
 
@@ -313,64 +370,91 @@ psql -h localhost -U postgres -d pnar_world
 - `GET /swagger-ui/index.html` - Interactive API documentation
 - `GET /api-doc/openapi.json` - OpenAPI specification
 
-## 🐳 Docker Deployment
+## � Production Deployment (Linux)
 
-### Using Docker Compose
+### Automated Linux Setup
 
-```yaml
-version: '3.8'
-services:
-  api:
-    image: pnar-world-api:1.0.0
-    ports:
-      - '8000:8000'
-    environment:
-      - APP_ENVIRONMENT=production
-      - DATABASE_HOST=postgres
-      - DATABASE_USERNAME=postgres
-      - DATABASE_PASSWORD=your-password
-      - JWT_SECRET=your-jwt-secret
-    depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=pnar_world
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=your-password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-```
-
-### Production Deployment
-
-For production deployment with optimized release build:
+For quick Linux deployment, use the provided setup script:
 
 ```bash
-# Deploy to production pod (includes database, migrations, and health checks)
-./deploy.sh
-
-# The script will:
-# - Build Rust app in release mode with optimizations
-# - Create production pod configuration
-# - Deploy PostgreSQL database
-# - Run database migrations
-# - Start the API application
-# - Perform health checks
+# Make script executable and run
+chmod +x setup-linux.sh
+./setup-linux.sh
 ```
 
-**Production Features:**
+The script will:
 
-- 🚀 **Release build** with full optimizations
-- 🔒 **Secure credentials** (auto-generated)
-- 🗄️ **PostgreSQL database** (no Adminer in production)
-- 🔄 **Automatic migrations**
-- ❤️ **Health checks** and monitoring
-- 📊 **Production logging** and error handling
+- ✅ Verify PostgreSQL installation and service
+- 🗄️ Create database and user if needed
+- 🔄 Run database migrations
+- 📦 Build the application in release mode
+- 🚀 Provide startup instructions
+
+### Manual Production Setup
+
+```bash
+# 1. Ensure PostgreSQL is running
+sudo systemctl status postgresql
+
+# 2. Set production environment
+export APP_ENVIRONMENT=production
+export DATABASE_URL="postgresql://postgres:your_secure_password@localhost:5432/pnar_world"
+export JWT_SECRET="your-secure-jwt-secret-here"
+
+# 3. Run migrations
+sqlx migrate run
+
+# 4. Build and run in production mode
+cargo build --release
+./target/release/pnar-world-backend-rust
+```
+
+### Production Checklist
+
+- [ ] PostgreSQL running with proper credentials
+- [ ] Environment variables set (APP_ENVIRONMENT=production)
+- [ ] Database migrations applied
+- [ ] JWT secret configured securely
+- [ ] SSL enabled in configuration.yaml
+- [ ] CORS origins restricted
+- [ ] Logging level set to 'warn'
+- [ ] Release build optimizations enabled
+
+### Systemd Service (Optional)
+
+Create a systemd service for automatic startup:
+
+```bash
+# Create service file
+sudo nano /etc/systemd/system/pnar-world-api.service
+```
+
+```ini
+[Unit]
+Description=PNAR World API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/your/app
+Environment=APP_ENVIRONMENT=production
+Environment=DATABASE_URL=postgresql://postgres:password@localhost:5432/pnar_world
+Environment=JWT_SECRET=your-secure-secret
+ExecStart=/path/to/your/app/target/release/pnar-world-backend-rust
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start service
+sudo systemctl daemon-reload
+sudo systemctl enable pnar-world-api
+sudo systemctl start pnar-world-api
+```
 
 ## 📈 Monitoring & Observability
 
@@ -547,46 +631,72 @@ deploy/               # Deployment configurations
 **Database Connection Failed**
 
 ```bash
-# Check database is running
-podman ps | grep postgres
+# Check PostgreSQL service status
+sudo systemctl status postgresql
 
-# Check connection
+# Check if PostgreSQL is listening
+sudo netstat -tlnp | grep 5432
+
+# Test database connection
 psql -h localhost -U postgres -d pnar_world
 ```
 
 **Migration Errors**
 
 ```bash
-# Reset database
-./start.sh  # This will recreate the database
+# Check DATABASE_URL environment variable
+echo $DATABASE_URL
 
-# Manual migration
-sqlx migrate run --database-url postgresql://postgres:root@localhost/pnar_world
+# Manual migration with explicit URL
+DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
+
+# Reset database (CAUTION: This will delete all data)
+sudo -u postgres dropdb pnar_world
+sudo -u postgres createdb pnar_world
+DATABASE_URL="postgresql://postgres:root@localhost:5432/pnar_world" sqlx migrate run
 ```
 
-**Container Won't Start**
+**Application Won't Start**
 
 ```bash
-# Check logs
-podman logs pnar-app-pod-api
+# Check if port 8000 is available
+sudo netstat -tlnp | grep 8000
 
-# Check health
+# Check application logs (run in another terminal)
+RUST_LOG=debug cargo run
+
+# Test health endpoint
 curl http://localhost:8000/api/v1/health
+```
+
+**Permission Issues (Linux)**
+
+```bash
+# Check PostgreSQL user permissions
+sudo -u postgres psql -c "\du"
+
+# Grant necessary permissions
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE pnar_world TO postgres;"
+
+# Check file permissions for the application
+ls -la target/release/pnar-world-backend-rust
 ```
 
 ### Performance Tuning
 
 **Database**
 
-- Adjust connection pool size in configuration
-- Monitor slow queries
+- Adjust connection pool size in `configuration.yaml`
+- Monitor slow queries with `pg_stat_statements`
 - Add database indexes for frequently queried fields
+- Tune PostgreSQL configuration for your hardware
 
 **Application**
 
-- Tune worker count based on CPU cores
+- Tune worker count based on CPU cores in `configuration.yaml`
 - Adjust request timeout settings
 - Enable compression for large responses
+- Use release build for production: `cargo build --release`
 
 ## 📚 Documentation
 

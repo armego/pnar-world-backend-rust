@@ -175,7 +175,7 @@ impl<T> PaginatedResponse<T> {
 }
 
 /// Dictionary entries paginated response
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize)]
 pub struct DictionaryPaginatedResponse {
     pub data: Vec<DictionaryEntryResponse>,
     pub pagination: PaginationInfo,
@@ -346,10 +346,9 @@ pub struct AnalyticsResponse {
     pub word_id: Uuid,
     pub user_id: Option<Uuid>,
     pub user_email: Option<String>,
-    pub event_type: String,
+    pub usage_type: String,
     pub timestamp: DateTime<Utc>,
     pub session_id: Option<String>,
-    pub metadata: serde_json::Value,
+    pub context_data: serde_json::Value,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }

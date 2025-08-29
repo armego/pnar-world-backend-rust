@@ -77,9 +77,9 @@ async fn run(
 
     let server = HttpServer::new(move || {
         let cors = configure_cors(&settings_data.application.cors, settings_data.is_production());
-        let is_dev = !settings_data.is_production();
+        let _is_dev = !settings_data.is_production();
 
-        let mut app = App::new()
+        let app = App::new()
             .app_data(app_state.clone())
             .app_data(settings_data.clone())
             .app_data(pool_data.clone())
@@ -233,23 +233,21 @@ async fn run(
                     // Role management endpoints
                     .service(
                         web::scope("/roles")
-                            .wrap(AuthMiddleware) // All role endpoints require auth
-                            .service(handlers::roles::list_roles)
-                            .service(handlers::roles::list_assignable_roles)
-                            .service(handlers::roles::list_manageable_roles),
+                            .service(handlers::roles::list_roles) // Public endpoint
+                            .service(
+                                web::scope("")
+                                    .wrap(AuthMiddleware) // Protected endpoints require auth
+                                    .service(handlers::roles::list_assignable_roles)
+                                    .service(handlers::roles::list_manageable_roles),
+                            ),
                     )
                     // Notification endpoints
                     .service(
                         web::scope("/notifications")
-                            // Public read endpoints (no auth required)
+                            .wrap(AuthMiddleware) // All notification endpoints require auth (user-specific)
                             .service(handlers::notification::get_notification)
                             .service(handlers::notification::list_notifications)
                             .service(handlers::notification::get_unread_count)
-                    )
-                    // Protected notification endpoints require auth
-                    .service(
-                        web::scope("/notifications")
-                            .wrap(AuthMiddleware)
                             .service(handlers::notification::create_notification)
                             .service(handlers::notification::update_notification)
                             .service(handlers::notification::mark_notification_read)

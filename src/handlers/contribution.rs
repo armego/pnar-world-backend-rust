@@ -1,5 +1,4 @@
 use actix_web::{delete, get, post, put, web, HttpResponse, Result};
-use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
@@ -9,6 +8,7 @@ use crate::{
     services::contribution_service,
 };
 
+#[derive(serde::Deserialize)]
 pub struct ContributionQueryParams {
     pub page: Option<i64>,
     pub per_page: Option<i64>,
@@ -16,7 +16,6 @@ pub struct ContributionQueryParams {
 }
 
 /// Create a new contribution
-)]
 #[post("")]
 pub async fn create_contribution(
     pool: web::Data<sqlx::PgPool>,
@@ -31,8 +30,6 @@ pub async fn create_contribution(
 }
 
 /// Get contribution by ID
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_contribution(
     pool: web::Data<sqlx::PgPool>,
@@ -46,8 +43,6 @@ pub async fn get_contribution(
 }
 
 /// List contributions (user's own or all if admin)
-    params(ContributionQueryParams),
-)]
 #[get("")]
 pub async fn list_contributions(
     pool: web::Data<sqlx::PgPool>,
@@ -66,8 +61,6 @@ pub async fn list_contributions(
 }
 
 /// Update a contribution
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_contribution(
     pool: web::Data<sqlx::PgPool>,
@@ -80,14 +73,13 @@ pub async fn update_contribution(
         path.into_inner(),
         user.user_id,
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(contribution))
 }
 
 /// Delete a contribution
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_contribution(
     pool: web::Data<sqlx::PgPool>,

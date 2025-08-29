@@ -1,5 +1,4 @@
 use actix_web::{web, HttpResponse, Result};
-use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
@@ -9,14 +8,16 @@ use crate::{
     services::analytics_service,
 };
 
+#[derive(serde::Deserialize)]
 pub struct AnalyticsQueryParams {
     pub page: Option<i64>,
     pub per_page: Option<i64>,
     pub user_id: Option<Uuid>,
     pub word_id: Option<Uuid>,
-    pub event_type: Option<String>,
+    pub usage_type: Option<String>,
 }
 
+#[derive(serde::Deserialize)]
 pub struct WordStatsParams {
     pub user_id: Option<Uuid>,
 }
@@ -31,6 +32,7 @@ pub async fn create_analytics(
         pool.get_ref(),
         Some(user.user_id),
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Created().json(analytics))
@@ -73,9 +75,10 @@ pub async fn list_analytics(
         pool.get_ref(),
         user_id,
         query.word_id,
-        query.event_type.as_deref(),
+        query.usage_type.as_deref(),
         page,
         per_page,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(analytics))
@@ -92,6 +95,7 @@ pub async fn update_analytics(
         pool.get_ref(),
         path.into_inner(),
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(analytics))

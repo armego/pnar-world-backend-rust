@@ -1,6 +1,7 @@
 use crate::{
     constants::error_messages,
     dto::{
+        responses::{ApiResponse, SuccessResponse},
         user::{
             AwardPointsRequest, CreateUserRequest, UpdatePasswordRequest, UpdateUserRequest,
             UpdateUserRoleRequest, UserQueryParams,
@@ -21,7 +22,6 @@ use validator::Validate;
 
 /// Create a new user
 /// POST /api/v1/users
-)]
 #[post("")]
 pub async fn create_user(
     pool: web::Data<PgPool>,
@@ -44,8 +44,6 @@ pub async fn create_user(
 
 /// Get user by ID
 /// GET /api/v1/users/{id}
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_user(
     pool: web::Data<PgPool>,
@@ -65,7 +63,6 @@ pub async fn get_user(
 
 /// Get current user profile
 /// GET /api/v1/users/me
-)]
 #[get("/me")]
 pub async fn get_current_user(
     pool: web::Data<PgPool>,
@@ -78,8 +75,6 @@ pub async fn get_current_user(
 
 /// List users with pagination and filtering
 /// GET /api/v1/users
-    params(UserQueryParams),
-)]
 #[get("")]
 pub async fn list_users(
     pool: web::Data<PgPool>,
@@ -96,8 +91,6 @@ pub async fn list_users(
 
 /// Update user
 /// PUT /api/v1/users/{id}
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_user(
     pool: web::Data<PgPool>,
@@ -132,7 +125,6 @@ pub async fn update_user(
 
 /// Update current user profile
 /// PUT /api/v1/users/me
-)]
 #[put("/me")]
 pub async fn update_current_user(
     pool: web::Data<PgPool>,
@@ -150,9 +142,6 @@ pub async fn update_current_user(
 
 /// Update user password
 /// PATCH /api/v1/users/{id}/password
-    patch,
-    params(
-)]
 #[patch("/{id}/password")]
 pub async fn update_user_password(
     pool: web::Data<PgPool>,
@@ -172,18 +161,18 @@ pub async fn update_user_password(
     if !auth_user.can_access_user(user_id, Some(&target_user.role)) {
         return Err(AppError::Forbidden(
             error_messages::ONLY_UPDATE_OWN_PASSWORD_OR_ADMIN,
+        ));
     }
 
     user_service::update_user_password(&pool, user_id, request.into_inner()).await?;
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new(
         "Password updated successfully".to_string(),
+    )))
 }
 
 /// Update current user password
 /// PATCH /api/v1/users/me/password
-    patch,
-)]
 #[patch("/me/password")]
 pub async fn update_current_user_password(
     pool: web::Data<PgPool>,
@@ -197,12 +186,11 @@ pub async fn update_current_user_password(
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new(
         "Password updated successfully".to_string(),
+    )))
 }
 
 /// Delete user (soft delete)
 /// DELETE /api/v1/users/{id}
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_user(
     pool: web::Data<PgPool>,
@@ -226,11 +214,11 @@ pub async fn delete_user(
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new(
         "User deleted successfully".to_string(),
+    )))
 }
 
 /// Delete current user account (soft delete)
 /// DELETE /api/v1/users/me
-)]
 #[delete("/me")]
 pub async fn delete_current_user(
     pool: web::Data<PgPool>,
@@ -240,12 +228,11 @@ pub async fn delete_current_user(
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new(
         "Account deleted successfully".to_string(),
+    )))
 }
 
 /// Award points to user
 /// POST /api/v1/users/{id}/points
-    params(
-)]
 #[post("/{id}/points")]
 pub async fn award_points(
     pool: web::Data<PgPool>,
@@ -265,8 +252,6 @@ pub async fn award_points(
 
 /// Verify user email
 /// POST /api/v1/users/{id}/verify-email
-    params(
-)]
 #[post("/{id}/verify-email")]
 pub async fn verify_email(
     pool: web::Data<PgPool>,
@@ -282,8 +267,6 @@ pub async fn verify_email(
 
 /// Get user by email
 /// GET /api/v1/users/email/{email}
-    params(
-)]
 #[get("/email/{email}")]
 pub async fn get_user_by_email(
     pool: web::Data<PgPool>,
@@ -299,8 +282,6 @@ pub async fn get_user_by_email(
 
 /// Update user role
 /// PUT /api/v1/users/{id}/role
-    params(
-)]
 #[put("/{id}/role")]
 pub async fn update_user_role(
     pool: web::Data<PgPool>,
@@ -313,10 +294,11 @@ pub async fn update_user_role(
     // Validate request
     request.validate()?;
 
-    // Check if the manager can assign this role
+        // Check if the manager can assign this role
     if !authorization::can_assign_role(&manager_user.0.role, &request.role) {
         return Err(AppError::Forbidden(
             "You don't have permission to assign this role",
+        ));
     }
 
     // Get the target user to check management permissions
@@ -326,6 +308,7 @@ pub async fn update_user_role(
     if !authorization::can_manage_user(&manager_user.0.role, &target_user.role) {
         return Err(AppError::Forbidden(
             "You don't have permission to manage this user",
+        ));
     }
 
     // Update the user's role

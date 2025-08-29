@@ -55,7 +55,8 @@ Content-Type: application/json
 {
   "email": "newuser@example.com",
   "password": "securepassword123",
-  "username": "newuser"
+  "full_name": "New User",
+  "preferred_language": "en"
 }
 ```
 
@@ -82,7 +83,7 @@ Authorization: Bearer {{auth_token}}
 
 - Uses the token saved from login
 
-### 📚 Alphabets
+### � Alphabets
 
 #### Get All Alphabets
 
@@ -90,32 +91,110 @@ Authorization: Bearer {{auth_token}}
 GET /alphabets
 ```
 
-#### Get Alphabet by ID
+#### Convert Text
 
 ```
-GET /alphabets/{id}
+POST /alphabets/convert
+Content-Type: application/json
+
+{
+  "text": "Hello World",
+  "from_script": "latin",
+  "to_script": "pnar"
+}
 ```
 
-#### Create Alphabet
+### 📊 Analytics
+
+#### List Analytics Records
 
 ```
-POST /alphabets
+GET /analytics?page=1&per_page=10&usage_type=click
+```
+
+- **Query Parameters**:
+  - `page`: Page number (default: 1)
+  - `per_page`: Items per page (default: 20)
+  - `usage_type`: Filter by usage type
+  - `user_id`: Filter by user ID
+  - `word_id`: Filter by word ID
+
+#### Get Analytics Record by ID
+
+```
+GET /analytics/{id}
+```
+
+#### Create Analytics Record (Authenticated)
+
+```
+POST /analytics
 Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 {
-  "name": "Pnar Alphabet",
-  "description": "Traditional Pnar writing system",
-  "characters": ["ꯀ", "ꯁ", "ꯂ", "ꯃ"]
+  "word_id": "uuid",
+  "usage_type": "click",
+  "timestamp": "2025-08-28T15:00:00Z",
+  "session_id": "session_123",
+  "context_data": {
+    "page": "dictionary",
+    "action": "word_lookup"
+  }
 }
 ```
 
-### 📖 Books
-
-#### Get All Books
+#### Create Anonymous Analytics Record
 
 ```
-GET /books
+POST /analytics/anonymous
+Content-Type: application/json
+
+{
+  "word_id": "uuid",
+  "usage_type": "view",
+  "timestamp": "2025-08-28T15:00:00Z",
+  "session_id": "session_123",
+  "context_data": {
+    "page": "dictionary",
+    "action": "word_view"
+  }
+}
+```
+
+#### Update Analytics Record
+
+```
+PUT /analytics/{id}
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "context_data": {
+    "updated": true
+  }
+}
+```
+
+#### Delete Analytics Record
+
+```
+DELETE /analytics/{id}
+Authorization: Bearer {{auth_token}}
+```
+
+#### Get Word Statistics
+
+```
+GET /analytics/words/{word_id}/stats
+```
+
+### � Books
+
+#### List Public Books
+
+```
+GET /books?page=1&per_page=10
 ```
 
 #### Get Book by ID
@@ -124,7 +203,7 @@ GET /books
 GET /books/{id}
 ```
 
-#### Create Book
+#### Create Book (Authenticated)
 
 ```
 POST /books
@@ -132,29 +211,113 @@ Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 {
-  "title": "Pnar Language Guide",
-  "author": "Pnar Community",
-  "description": "A comprehensive guide to Pnar language",
+  "title": "Sample Book",
+  "description": "A sample book for testing",
+  "content": "Book content here...",
   "language": "en",
-  "content": "Book content here..."
+  "is_public": true
 }
 ```
 
-### 🔄 Translation
-
-#### Request Translation
+#### Update Book (Authenticated)
 
 ```
-POST /translations
+PUT /books/{id}
 Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 {
-  "source_text": "Hello World",
-  "source_language": "en",
-  "target_language": "pnar",
-  "context": "greeting"
+  "title": "Updated Book Title",
+  "description": "Updated description",
+  "is_public": false
 }
+```
+
+#### Delete Book (Authenticated)
+
+```
+DELETE /books/{id}
+Authorization: Bearer {{auth_token}}
+```
+
+#### Get My Books (Authenticated)
+
+```
+GET /books/my?page=1&per_page=10
+Authorization: Bearer {{auth_token}}
+```
+
+### 📖 Dictionary
+
+#### List Dictionary Entries
+
+```
+GET /dictionary?page=1&per_page=10
+```
+
+#### Get Dictionary Entry by ID
+
+```
+GET /dictionary/{id}
+```
+
+#### Search Dictionary
+
+```
+POST /dictionary/search
+Content-Type: application/json
+
+{
+  "query": "hello",
+  "language": "en",
+  "limit": 10
+}
+```
+
+#### Create Dictionary Entry (Admin)
+
+```
+POST /dictionary
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "pnar_word": "pnar_word",
+  "english_word": "english word",
+  "definition": "Definition of the word",
+  "part_of_speech": "noun",
+  "examples": ["Example 1", "Example 2"],
+  "etymology": "Word origin",
+  "phonetic": "phonetic spelling"
+}
+```
+
+#### Update Dictionary Entry (Admin)
+
+```
+PUT /dictionary/{id}
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "definition": "Updated definition",
+  "examples": ["Updated example"]
+}
+```
+
+#### Delete Dictionary Entry (Admin)
+
+```
+DELETE /dictionary/{id}
+Authorization: Bearer {{auth_token}}
+```
+
+### 🌐 Translations
+
+#### List Translations
+
+```
+GET /translations?page=1&per_page=10
 ```
 
 #### Get Translation by ID
@@ -163,153 +326,243 @@ Content-Type: application/json
 GET /translations/{id}
 ```
 
-#### Get User's Translations
+#### Create Translation (Authenticated)
 
 ```
-GET /translations/user/{user_id}
-```
-
-### 📊 Analytics
-
-#### Create Analytics Event
-
-```
-POST /analytics
+POST /translations
 Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 {
-  "event_type": "word_lookup",
-  "word_id": "uuid-here",
+  "source_text": "Hello world",
+  "target_text": "Pnar translation",
+  "source_language": "en",
+  "target_language": "pnar",
+  "context": "Greeting"
+}
+```
+
+#### Update Translation (Authenticated)
+
+```
+PUT /translations/{id}
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "target_text": "Updated Pnar translation",
+  "context": "Updated greeting"
+}
+```
+
+#### Delete Translation (Authenticated)
+
+```
+DELETE /translations/{id}
+Authorization: Bearer {{auth_token}}
+```
+
+### 🤝 Contributions
+
+#### Create Contribution (Authenticated)
+
+```
+POST /contributions
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "content_type": "dictionary_entry",
+  "content_id": "uuid",
+  "contribution_type": "create",
+  "description": "Added new dictionary entry",
   "metadata": {
-    "source": "dictionary",
-    "confidence": 0.95
+    "word": "new_word",
+    "language": "pnar"
   }
 }
 ```
 
-#### Get Analytics Records
+#### Update Contribution (Authenticated)
 
 ```
-GET /analytics?page=1&per_page=20
+PUT /contributions/{id}
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "status": "approved",
+  "reviewer_notes": "Approved with minor corrections"
+}
 ```
 
-## 🎯 Testing Workflow
+#### Delete Contribution (Authenticated)
 
-### 1. Health Check
+```
+DELETE /contributions/{id}
+Authorization: Bearer {{auth_token}}
+```
 
-- Run **Health Check → Get Health Status**
-- Should return: `{"status": "healthy"}`
+### 👥 Roles
 
-### 2. Authentication
+#### List All Roles
 
-- Run **Authentication → Register User** (optional)
-- Run **Authentication → Login**
-  - This saves the JWT token automatically
-- Run **Authentication → Get Profile**
-  - Should work with the saved token
+```
+GET /roles
+```
 
-### 3. Core Features
+#### List Assignable Roles (Authenticated)
 
-- **Alphabets → Get All Alphabets**
-- **Books → Get Books**
-- **Translation → Request Translation** (requires auth)
-- **Analytics → Create Analytics** (requires auth)
+```
+GET /roles/assignable
+Authorization: Bearer {{auth_token}}
+```
+
+#### List Manageable Roles (Authenticated)
+
+```
+GET /roles/manageable
+Authorization: Bearer {{auth_token}}
+```
+
+### 🔔 Notifications
+
+#### List Notifications (Authenticated)
+
+```
+GET /notifications?page=1&per_page=10
+Authorization: Bearer {{auth_token}}
+```
+
+#### Get Notification by ID (Authenticated)
+
+```
+GET /notifications/{id}
+Authorization: Bearer {{auth_token}}
+```
+
+#### Get Unread Count (Authenticated)
+
+```
+GET /notifications/unread-count
+Authorization: Bearer {{auth_token}}
+```
+
+#### Create Notification (Authenticated)
+
+```
+POST /notifications
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "title": "Test Notification",
+  "message": "This is a test notification",
+  "notification_type": "info",
+  "recipient_id": "uuid"
+}
+```
+
+#### Update Notification (Authenticated)
+
+```
+PUT /notifications/{id}
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "is_read": true
+}
+```
+
+#### Mark Notification as Read (Authenticated)
+
+```
+PUT /notifications/{id}/read
+Authorization: Bearer {{auth_token}}
+```
+
+#### Mark All Notifications as Read (Authenticated)
+
+```
+PUT /notifications/mark-all-read
+Authorization: Bearer {{auth_token}}
+```
+
+#### Delete Notification (Authenticated)
+
+```
+DELETE /notifications/{id}
+Authorization: Bearer {{auth_token}}
+```
 
 ## 🔧 Environment Variables
 
-The environment file includes:
+The collection uses the following environment variables:
 
-| Variable        | Default Value                  | Description          |
-| --------------- | ------------------------------ | -------------------- |
-| `base_url`      | `http://localhost:8000/api/v1` | API base URL         |
-| `auth_token`    | _(auto-filled)_                | JWT token from login |
-| `test_email`    | `test@example.com`             | Test user email      |
-| `test_password` | `password123`                  | Test user password   |
+- **`base_url`**: Base URL for the API (default: `http://localhost:8000/api/v1`)
+- **`auth_token`**: JWT token for authenticated requests (auto-populated on login)
+- **`user_id`**: User ID for filtering (optional)
+- **`word_id`**: Word ID for filtering (optional)
+- **`book_id`**: Book ID for operations (optional)
 
-## 🛠️ Advanced Usage
+## � Testing Tips
 
-### Custom Environment
+### 1. Authentication Flow
 
-Create multiple environments for different setups:
+1. **Register** a new user or **Login** with existing credentials
+2. The JWT token is automatically saved to `auth_token` variable
+3. All subsequent requests will use this token
 
-1. **Development**: `http://localhost:8000/api/v1`
-2. **Staging**: `https://staging-api.example.com/api/v1`
-3. **Production**: `https://api.pnarworld.com/api/v1`
+### 2. Using UUIDs
 
-### Running Tests
+Replace placeholder UUIDs (`123e4567-e89b-12d3-a456-426614174000`) with actual IDs from your database or API responses.
 
-Use Postman's built-in test runner:
+### 3. Testing Different Scenarios
 
-```javascript
-// Example test in Postman
-pm.test('Status code is 200', function () {
-  pm.response.to.have.status(200);
-});
+- **Public endpoints**: No authentication required
+- **Protected endpoints**: Require `Authorization: Bearer {{auth_token}}` header
+- **Admin endpoints**: Require admin privileges (dictionary management)
 
-pm.test('Response has required fields', function () {
-  var jsonData = pm.response.json();
-  pm.expect(jsonData).to.have.property('status');
-});
+### 4. Response Validation
+
+Most endpoints return data in this format:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation successful"
+}
 ```
 
-### Data Generation
+## � Troubleshooting
 
-For testing with different data:
+### Common Issues
 
-```javascript
-// Generate random test data
-var randomEmail = 'test' + Math.floor(Math.random() * 1000) + '@example.com';
-pm.environment.set('test_email', randomEmail);
-```
+1. **401 Unauthorized**: Check if you're logged in and token is valid
+2. **403 Forbidden**: You may not have required permissions
+3. **404 Not Found**: Check the endpoint URL and parameters
+4. **500 Internal Server Error**: Check server logs for details
 
-## 🚨 Common Issues
+### Token Expiration
 
-### 401 Unauthorized
+If your token expires, simply run the **Login** request again to get a new token.
 
-- **Solution**: Run login request first to get JWT token
-- **Check**: Ensure `Authorization: Bearer {{auth_token}}` header is present
+## � Collection Features
 
-### 404 Not Found
+- ✅ **Complete API Coverage**: All endpoints included
+- ✅ **Auto Token Management**: JWT tokens saved automatically
+- ✅ **Environment Variables**: Easy configuration
+- ✅ **Request Examples**: Sample data for all endpoints
+- ✅ **Query Parameters**: Pagination and filtering examples
+- ✅ **Error Handling**: Proper status codes and error messages
 
-- **Solution**: Check base URL in environment
-- **Check**: Ensure API is running on correct port
+## 🔄 Version History
 
-### Connection Refused
-
-- **Solution**: Start the development server
-- **Command**: `./scripts/dev.sh`
-
-## 📖 Additional Resources
-
-- [Postman Documentation](https://learning.postman.com/)
-- [PNAR World API Docs](../README.md)
-- [Development Guide](../README.md)
-
-## 🎬 Demo Script
-
-Run the demo script to see the difference between using Postman vs manual curl commands:
-
-```bash
-# Run the demo comparison
-./demo-postman.sh
-```
-
-This script shows:
-
-- ✅ **Postman workflow**: Import → Configure → Test instantly
-- ❌ **Manual curl workflow**: Write commands → Handle auth → Parse responses
-- 📊 **Comparison**: Why Postman is more efficient for API development
-
-## 🤝 Contributing
-
-When adding new API endpoints:
-
-1. Add the request to the Postman collection
-2. Include proper headers and authentication
-3. Add example request/response data
-4. Update this README with the new endpoint
+- **v2.0.0**: Complete rewrite with all endpoints, improved documentation
+- **v1.0.0**: Basic collection with core endpoints
 
 ---
 
-**Happy API Testing! 🎉**
+For more information about the PNAR World API, check the main project documentation.

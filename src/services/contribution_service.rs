@@ -119,7 +119,7 @@ pub async fn list_contributions(
     user_id: Option<Uuid>,
     page: i64,
     per_page: i64,
-) -> Result<Vec<ContributionResponse>, AppError> {
+) -> Result<crate::dto::responses::ContributionPaginatedResponse, AppError> {
     let offset = (page - 1) * per_page;
 
     let records = if let Some(uid) = user_id {
@@ -156,7 +156,20 @@ pub async fn list_contributions(
         .await?
     };
 
-    Ok(records
+    // Get total count for pagination
+    let total_result = if let Some(uid) = user_id {
+        sqlx::query("SELECT COUNT(*) FROM user_contributions WHERE user_id = $1")
+            .bind(uid)
+            .fetch_one(pool)
+            .await?
+    } else {
+        sqlx::query("SELECT COUNT(*) FROM user_contributions")
+            .fetch_one(pool)
+            .await?
+    };
+    let total: i64 = total_result.get(0);
+
+    let items: Vec<ContributionResponse> = records
         .into_iter()
         .map(|record| ContributionResponse {
             id: record.get("id"),
@@ -175,7 +188,11 @@ pub async fn list_contributions(
             reviewed_at: record.get("reviewed_at"),
             created_at: record.get("created_at"),
         })
-        .collect())
+        .collect();
+
+    Ok(crate::dto::responses::ContributionPaginatedResponse::new(
+        items, page, per_page, total,
+    ))
 }
 
 pub async fn update_contribution(

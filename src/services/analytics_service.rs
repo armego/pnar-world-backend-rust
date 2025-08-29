@@ -1,6 +1,6 @@
 use crate::{
     constants::error_messages,
-    dto::{responses::AnalyticsResponse, CreateAnalyticsRequest, UpdateAnalyticsRequest},
+    dto::{responses::{AnalyticsResponse, AnalyticsPaginatedResponse}, CreateAnalyticsRequest, UpdateAnalyticsRequest},
     error::AppError,
 };
 use sqlx::{PgPool, Row};
@@ -16,21 +16,20 @@ pub async fn create_analytics_record(
     let record = sqlx::query(
         r#"
         INSERT INTO word_usage_analytics (
-            id, user_id, word_id, event_type, timestamp, session_id,
-            metadata, created_at, updated_at
+            id, user_id, word_id, usage_type, session_id,
+            context_data, created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-        RETURNING id, user_id, word_id, event_type, timestamp, session_id,
-                  metadata, created_at, updated_at
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id, user_id, word_id, usage_type, session_id,
+                  context_data, created_at
         "#,
     )
     .bind(analytics_id)
     .bind(user_id)
     .bind(&request.word_id)
-    .bind(&request.event_type)
-    .bind(&request.timestamp)
+    .bind(&request.usage_type)
     .bind(&request.session_id)
-    .bind(&request.metadata.unwrap_or_else(|| serde_json::json!({})))
+    .bind(&request.context_data.unwrap_or_else(|| serde_json::json!({})))
     .fetch_one(pool)
     .await?;
 
@@ -39,12 +38,11 @@ pub async fn create_analytics_record(
         user_id: record.get("user_id"),
         user_email: None, // For create, we don't join with users table
         word_id: record.get("word_id"),
-        event_type: record.get("event_type"),
-        timestamp: record.get("timestamp"),
+        usage_type: record.get("usage_type"),
+        timestamp: record.get("created_at"), // Use created_at as timestamp
         session_id: record.get("session_id"),
-        metadata: record.get("metadata"),
+        context_data: record.get("context_data"),
         created_at: record.get("created_at"),
-        updated_at: record.get("updated_at"),
     })
 }
 
@@ -54,8 +52,8 @@ pub async fn get_analytics_record(
 ) -> Result<AnalyticsResponse, AppError> {
     let record = sqlx::query(
         r#"
-        SELECT id, user_id, word_id, event_type, timestamp, session_id,
-               metadata, created_at, updated_at
+        SELECT id, user_id, word_id, usage_type, session_id,
+               context_data, created_at
         FROM word_usage_analytics 
         WHERE id = $1
         "#,
@@ -72,12 +70,11 @@ pub async fn get_analytics_record(
         user_id: record.get("user_id"),
         user_email: None, // For single record, we don't join with users table
         word_id: record.get("word_id"),
-        event_type: record.get("event_type"),
-        timestamp: record.get("timestamp"),
+        usage_type: record.get("usage_type"),
+        timestamp: record.get("created_at"), // Use created_at as timestamp
         session_id: record.get("session_id"),
-        metadata: record.get("metadata"),
+        context_data: record.get("context_data"),
         created_at: record.get("created_at"),
-        updated_at: record.get("updated_at"),
     })
 }
 
@@ -85,27 +82,56 @@ pub async fn list_analytics_records(
     pool: &PgPool,
     user_id: Option<Uuid>,
     word_id: Option<Uuid>,
-    event_type: Option<&str>,
+    usage_type: Option<&str>,
     page: i64,
     per_page: i64,
-) -> Result<Vec<AnalyticsResponse>, AppError> {
+) -> Result<AnalyticsPaginatedResponse, AppError> {
     let offset = (page - 1) * per_page;
 
-    let mut query_builder = sqlx::QueryBuilder::new(
+    // First, get the total count
+    let mut count_query_builder = sqlx::QueryBuilder::new(
         r#"
-        SELECT 
-            w.id, w.user_id, u.email as user_email, w.word_id, w.event_type, 
-            w.timestamp, w.session_id, w.metadata, w.created_at, w.updated_at
-        FROM word_usage_analytics w
-        LEFT JOIN users u ON w.user_id = u.id
+        SELECT COUNT(*) FROM word_usage_analytics w
         "#,
     );
 
     let has_user_id = user_id.is_some();
     let has_word_id = word_id.is_some();
-    let has_event_type = event_type.is_some();
+    let has_usage_type = usage_type.is_some();
 
-    if has_user_id || has_word_id || has_event_type {
+    if has_user_id || has_word_id || has_usage_type {
+        count_query_builder.push(" WHERE ");
+        let mut separated = count_query_builder.separated(" AND ");
+        if let Some(uid) = user_id {
+            separated.push("w.user_id = ");
+            separated.push_bind(uid);
+        }
+        if let Some(wid) = word_id {
+            separated.push("w.word_id = ");
+            separated.push_bind(wid);
+        }
+        if let Some(ut) = usage_type {
+            separated.push("w.usage_type = ");
+            separated.push_bind(ut);
+        }
+    }
+
+    let count_query = count_query_builder.build();
+    let total_result = count_query.fetch_one(pool).await?;
+    let total: i64 = total_result.get(0);
+
+    // Then get the paginated records
+    let mut query_builder = sqlx::QueryBuilder::new(
+        r#"
+        SELECT 
+            w.id, w.user_id, u.email as user_email, w.word_id, w.usage_type, 
+            w.created_at, w.session_id, w.context_data, w.created_at
+        FROM word_usage_analytics w
+        LEFT JOIN users u ON w.user_id = u.id
+        "#,
+    );
+
+    if has_user_id || has_word_id || has_usage_type {
         query_builder.push(" WHERE ");
         let mut separated = query_builder.separated(" AND ");
         if let Some(uid) = user_id {
@@ -116,36 +142,36 @@ pub async fn list_analytics_records(
             separated.push("w.word_id = ");
             separated.push_bind(wid);
         }
-        if let Some(et) = event_type {
-            separated.push("w.event_type = ");
-            separated.push_bind(et);
+        if let Some(ut) = usage_type {
+            separated.push("w.usage_type = ");
+            separated.push_bind(ut);
         }
     }
 
-    query_builder.push(" ORDER BY w.timestamp DESC LIMIT ");
+    query_builder.push(" ORDER BY w.created_at DESC LIMIT ");
     query_builder.push_bind(per_page);
     query_builder.push(" OFFSET ");
     query_builder.push_bind(offset);
 
     let query = query_builder.build();
-
     let records = query.fetch_all(pool).await?;
 
-    Ok(records
+    let items: Vec<AnalyticsResponse> = records
         .into_iter()
         .map(|record| AnalyticsResponse {
             id: record.get("id"),
             user_id: record.get("user_id"),
             user_email: record.get("user_email"),
             word_id: record.get("word_id"),
-            event_type: record.get("event_type"),
-            timestamp: record.get("timestamp"),
+            usage_type: record.get("usage_type"),
+            timestamp: record.get("created_at"), // Use created_at as timestamp
             session_id: record.get("session_id"),
-            metadata: record.get("metadata"),
+            context_data: record.get("context_data"),
             created_at: record.get("created_at"),
-            updated_at: record.get("updated_at"),
         })
-        .collect())
+        .collect();
+
+    Ok(AnalyticsPaginatedResponse::new(items, page, per_page, total))
 }
 
 pub async fn update_analytics_record(
@@ -157,15 +183,14 @@ pub async fn update_analytics_record(
         r#"
         UPDATE word_usage_analytics 
         SET 
-            metadata = COALESCE($2, metadata),
-            updated_at = NOW()
+            context_data = COALESCE($2, context_data)
         WHERE id = $1
-        RETURNING id, user_id, word_id, event_type, timestamp, session_id,
-                  metadata, created_at, updated_at
+        RETURNING id, user_id, word_id, usage_type, session_id,
+                  context_data, created_at
         "#,
     )
     .bind(analytics_id)
-    .bind(&request.metadata)
+    .bind(&request.context_data)
     .fetch_optional(pool)
     .await?;
 
@@ -177,12 +202,11 @@ pub async fn update_analytics_record(
         user_id: record.get("user_id"),
         user_email: None, // For update, we don't join with users table
         word_id: record.get("word_id"),
-        event_type: record.get("event_type"),
-        timestamp: record.get("timestamp"),
+        usage_type: record.get("usage_type"),
+        timestamp: record.get("created_at"), // Use created_at as timestamp
         session_id: record.get("session_id"),
-        metadata: record.get("metadata"),
+        context_data: record.get("context_data"),
         created_at: record.get("created_at"),
-        updated_at: record.get("updated_at"),
     })
 }
 
@@ -208,12 +232,12 @@ pub async fn get_word_usage_stats(
         sqlx::query(
             r#"
             SELECT 
-                event_type,
+                usage_type,
                 COUNT(*) as count,
                 DATE_TRUNC('day', timestamp) as date
             FROM word_usage_analytics 
             WHERE word_id = $1 AND user_id = $2
-            GROUP BY event_type, DATE_TRUNC('day', timestamp) 
+            GROUP BY usage_type, DATE_TRUNC('day', timestamp) 
             ORDER BY date DESC
             "#,
         )
@@ -225,12 +249,12 @@ pub async fn get_word_usage_stats(
         sqlx::query(
             r#"
             SELECT 
-                event_type,
+                usage_type,
                 COUNT(*) as count,
                 DATE_TRUNC('day', timestamp) as date
             FROM word_usage_analytics 
             WHERE word_id = $1
-            GROUP BY event_type, DATE_TRUNC('day', timestamp) 
+            GROUP BY usage_type, DATE_TRUNC('day', timestamp) 
             ORDER BY date DESC
             "#,
         )
@@ -243,7 +267,7 @@ pub async fn get_word_usage_stats(
         .into_iter()
         .map(|record| {
             serde_json::json!({
-                "event_type": record.get::<String, _>("event_type"),
+                "usage_type": record.get::<String, _>("usage_type"),
                 "count": record.get::<i64, _>("count"),
                 "date": record.get::<chrono::DateTime<chrono::Utc>, _>("date")
             })

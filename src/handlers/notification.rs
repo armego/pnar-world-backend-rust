@@ -9,6 +9,7 @@ use crate::{
             CreateNotificationRequest, NotificationQueryParams, UpdateNotificationRequest,
             MarkNotificationReadRequest,
         },
+        responses::{ApiResponse, SuccessResponse},
     },
     error::AppError,
     middleware::auth::AuthenticatedUser,
@@ -16,7 +17,6 @@ use crate::{
 };
 
 /// Create a new notification
-)]
 #[post("")]
 pub async fn create_notification(
     pool: web::Data<PgPool>,
@@ -29,14 +29,13 @@ pub async fn create_notification(
         &pool,
         user.user_id,
         request.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Created().json(ApiResponse::new(notification)))
 }
 
 /// Get a notification by ID
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_notification(
     pool: web::Data<PgPool>,
@@ -49,14 +48,13 @@ pub async fn get_notification(
         &pool,
         notification_id,
         user.user_id,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(notification)))
 }
 
 /// List notifications for the current user
-    params(NotificationQueryParams),
-)]
 #[get("")]
 pub async fn list_notifications(
     pool: web::Data<PgPool>,
@@ -67,14 +65,13 @@ pub async fn list_notifications(
         &pool,
         user.user_id,
         query.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(notifications))
 }
 
 /// Update a notification
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_notification(
     pool: web::Data<PgPool>,
@@ -90,15 +87,13 @@ pub async fn update_notification(
         notification_id,
         user.user_id,
         request.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(notification)))
 }
 
 /// Mark notification as read/unread
-    patch,
-    params(
-)]
 #[patch("/{id}/read")]
 pub async fn mark_notification_read(
     pool: web::Data<PgPool>,
@@ -113,14 +108,13 @@ pub async fn mark_notification_read(
         notification_id,
         user.user_id,
         request.read,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(notification)))
 }
 
 /// Delete a notification
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_notification(
     pool: web::Data<PgPool>,
@@ -133,14 +127,13 @@ pub async fn delete_notification(
         &pool,
         notification_id,
         user.user_id,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new("Notification deleted successfully".to_string())))
 }
 
 /// Mark all notifications as read
-    patch,
-)]
 #[patch("/mark-all-read")]
 pub async fn mark_all_notifications_read(
     pool: web::Data<PgPool>,
@@ -149,14 +142,15 @@ pub async fn mark_all_notifications_read(
     let count = notification_service::mark_all_notifications_read(
         &pool,
         user.user_id,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(SuccessResponse::new(
-        format!("Marked {} notifications as read", count)
+        format!("Marked {} notifications as read", count),
+    )))
 }
 
 /// Get unread notifications count
-)]
 #[get("/unread-count")]
 pub async fn get_unread_count(
     pool: web::Data<PgPool>,
@@ -165,6 +159,7 @@ pub async fn get_unread_count(
     let count = notification_service::get_unread_count(
         &pool,
         user.user_id,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(serde_json::json!({

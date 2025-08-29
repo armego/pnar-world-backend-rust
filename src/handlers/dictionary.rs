@@ -3,6 +3,7 @@ use crate::{
         dictionary::{
             CreateDictionaryEntryRequest, SearchDictionaryRequest, UpdateDictionaryEntryRequest,
         },
+        responses::ApiResponse,
     },
     error::AppError,
     middleware::{
@@ -24,7 +25,6 @@ pub struct PaginationQuery {
 }
 
 /// Create a new dictionary entry
-)]
 #[post("")]
 pub async fn create_entry(
     pool: web::Data<PgPool>,
@@ -39,8 +39,6 @@ pub async fn create_entry(
 }
 
 /// Get a dictionary entry by ID
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_entry(
     pool: web::Data<PgPool>,
@@ -63,13 +61,12 @@ pub async fn get_entry(
         session_id,
         ip_address,
         user_agent,
+    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entry)))
 }
 
 /// List dictionary entries with pagination
-    params(
-)]
 #[get("")]
 pub async fn list_entries(
     pool: web::Data<PgPool>,
@@ -84,7 +81,6 @@ pub async fn list_entries(
 }
 
 /// Search dictionary entries
-)]
 #[post("/search")]
 pub async fn search_entries(
     pool: web::Data<PgPool>,
@@ -107,13 +103,12 @@ pub async fn search_entries(
         session_id,
         ip_address,
         user_agent,
+    ).await?;
 
     Ok(HttpResponse::Ok().json(ApiResponse::new(entries)))
 }
 
 /// Update a dictionary entry
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_entry(
     pool: web::Data<PgPool>,
@@ -132,8 +127,6 @@ pub async fn update_entry(
 }
 
 /// Delete a dictionary entry
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_entry(
     pool: web::Data<PgPool>,
@@ -147,8 +140,6 @@ pub async fn delete_entry(
 }
 
 /// Verify a dictionary entry
-    params(
-)]
 #[put("/{id}/verify")]
 pub async fn verify_entry(
     pool: web::Data<PgPool>,

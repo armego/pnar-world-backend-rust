@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "PNAR World API",
-    "description": "Simple Postman collection for PNAR World API testing",
+    "description": "Comprehensive Postman collection for PNAR World API testing with all endpoints",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "variable": [
     {
@@ -13,6 +13,21 @@
     },
     {
       "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "word_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
       "value": "",
       "type": "string"
     }
@@ -38,44 +53,6 @@
       ]
     },
     {
-      "name": "Alphabets",
-      "item": [
-        {
-          "name": "Get All Alphabets",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/alphabets",
-              "host": ["{{base_url}}"],
-              "path": ["alphabets"]
-            },
-            "description": "Get all Pnar alphabet characters"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Books",
-      "item": [
-        {
-          "name": "Get Books",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/books",
-              "host": ["{{base_url}}"],
-              "path": ["books"]
-            },
-            "description": "Get list of public books"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
       "name": "Authentication",
       "item": [
         {
@@ -90,7 +67,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"full_name\": \"Test User\"\n}"
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"full_name\": \"Test User\",\n  \"preferred_language\": \"en\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
@@ -157,6 +134,943 @@
               "path": ["auth", "profile"]
             },
             "description": "Get current user profile (requires authentication)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alphabets",
+      "item": [
+        {
+          "name": "Get All Alphabets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/alphabets",
+              "host": ["{{base_url}}"],
+              "path": ["alphabets"]
+            },
+            "description": "Get all Pnar alphabet characters"
+          },
+          "response": []
+        },
+        {
+          "name": "Convert Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hello World\",\n  \"from_script\": \"latin\",\n  \"to_script\": \"pnar\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/alphabets/convert",
+              "host": ["{{base_url}}"],
+              "path": ["alphabets", "convert"]
+            },
+            "description": "Convert text between different scripts"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "List Analytics Records",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics?page=1&per_page=10&usage_type=click",
+              "host": ["{{base_url}}"],
+              "path": ["analytics"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                },
+                {
+                  "key": "usage_type",
+                  "value": "click",
+                  "description": "Filter by usage type (optional)"
+                },
+                {
+                  "key": "user_id",
+                  "value": "{{user_id}}",
+                  "description": "Filter by user ID (optional)"
+                },
+                {
+                  "key": "word_id",
+                  "value": "{{word_id}}",
+                  "description": "Filter by word ID (optional)"
+                }
+              ]
+            },
+            "description": "Get list of analytics records with optional filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Analytics Record by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Get a specific analytics record by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Analytics Record (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"word_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"usage_type\": \"click\",\n  \"timestamp\": \"2025-08-28T15:00:00Z\",\n  \"session_id\": \"session_123\",\n  \"context_data\": {\n    \"page\": \"dictionary\",\n    \"action\": \"word_lookup\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["analytics"]
+            },
+            "description": "Create a new analytics record (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Anonymous Analytics Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"word_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"usage_type\": \"view\",\n  \"timestamp\": \"2025-08-28T15:00:00Z\",\n  \"session_id\": \"session_123\",\n  \"context_data\": {\n    \"page\": \"dictionary\",\n    \"action\": \"word_view\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/analytics/anonymous",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "anonymous"]
+            },
+            "description": "Create an anonymous analytics record (no authentication required)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Analytics Record",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"context_data\": {\n    \"page\": \"dictionary\",\n    \"action\": \"word_lookup\",\n    \"updated\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/analytics/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update an analytics record (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Analytics Record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete an analytics record (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Word Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/words/123e4567-e89b-12d3-a456-426614174000/stats",
+              "host": ["{{base_url}}"],
+              "path": [
+                "analytics",
+                "words",
+                "123e4567-e89b-12d3-a456-426614174000",
+                "stats"
+              ]
+            },
+            "description": "Get usage statistics for a specific word"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "List Public Books",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["books"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get list of public books"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Book by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["books", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Get a specific book by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Book (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sample Book\",\n  \"description\": \"A sample book for testing\",\n  \"content\": \"Book content here...\",\n  \"language\": \"en\",\n  \"is_public\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books",
+              "host": ["{{base_url}}"],
+              "path": ["books"]
+            },
+            "description": "Create a new book (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Book (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Book Title\",\n  \"description\": \"Updated description\",\n  \"content\": \"Updated content...\",\n  \"is_public\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["books", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update an existing book (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Book (Authenticated)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["books", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete a book (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Books (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/books/my?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["books", "my"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get books created by the authenticated user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dictionary",
+      "item": [
+        {
+          "name": "List Dictionary Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dictionary?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get list of dictionary entries with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dictionary Entry by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/dictionary/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Get a specific dictionary entry by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Dictionary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"hello\",\n  \"language\": \"en\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/dictionary/search",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary", "search"]
+            },
+            "description": "Search dictionary entries"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Dictionary Entry (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pnar_word\": \"pnar_word\",\n  \"english_word\": \"english word\",\n  \"definition\": \"Definition of the word\",\n  \"part_of_speech\": \"noun\",\n  \"examples\": [\"Example 1\", \"Example 2\"],\n  \"etymology\": \"Word origin\",\n  \"phonetic\": \"phonetic spelling\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/dictionary",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary"]
+            },
+            "description": "Create a new dictionary entry (requires admin privileges)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Dictionary Entry (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"definition\": \"Updated definition\",\n  \"examples\": [\"Updated example\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/dictionary/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update a dictionary entry (requires admin privileges)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Dictionary Entry (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dictionary/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["dictionary", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete a dictionary entry (requires admin privileges)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Translations",
+      "item": [
+        {
+          "name": "List Translations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["translations"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get list of translations with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Translation by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/translations/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Get a specific translation by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Translation (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_text\": \"Hello world\",\n  \"target_text\": \"Pnar translation\",\n  \"source_language\": \"en\",\n  \"target_language\": \"pnar\",\n  \"context\": \"Greeting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translations",
+              "host": ["{{base_url}}"],
+              "path": ["translations"]
+            },
+            "description": "Create a new translation (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Translation (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_text\": \"Updated Pnar translation\",\n  \"context\": \"Updated greeting\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translations/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update a translation (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Translation (Authenticated)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/translations/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["translations", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete a translation (requires authentication)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contributions",
+      "item": [
+        {
+          "name": "Create Contribution (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_type\": \"dictionary_entry\",\n  \"content_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"contribution_type\": \"create\",\n  \"description\": \"Added new dictionary entry\",\n  \"metadata\": {\n    \"word\": \"new_word\",\n    \"language\": \"pnar\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contributions",
+              "host": ["{{base_url}}"],
+              "path": ["contributions"]
+            },
+            "description": "Create a new contribution (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Contribution (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reviewer_notes\": \"Approved with minor corrections\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/contributions/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["contributions", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update a contribution (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Contribution (Authenticated)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/contributions/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["contributions", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete a contribution (requires authentication)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "List All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            },
+            "description": "Get list of all available roles"
+          },
+          "response": []
+        },
+        {
+          "name": "List Assignable Roles (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/assignable",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "assignable"]
+            },
+            "description": "Get list of roles the authenticated user can assign"
+          },
+          "response": []
+        },
+        {
+          "name": "List Manageable Roles (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/manageable",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "manageable"]
+            },
+            "description": "Get list of roles the authenticated user can manage"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get list of notifications for the authenticated user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification by ID (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Get a specific notification by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Count (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "unread-count"]
+            },
+            "description": "Get count of unread notifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Notification (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Notification\",\n  \"message\": \"This is a test notification\",\n  \"notification_type\": \"info\",\n  \"recipient_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["notifications"]
+            },
+            "description": "Create a new notification (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Notification (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_read\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Update a notification (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/123e4567-e89b-12d3-a456-426614174000/read",
+              "host": ["{{base_url}}"],
+              "path": [
+                "notifications",
+                "123e4567-e89b-12d3-a456-426614174000",
+                "read"
+              ]
+            },
+            "description": "Mark a specific notification as read"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications as Read (Authenticated)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/mark-all-read",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "mark-all-read"]
+            },
+            "description": "Mark all notifications as read"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification (Authenticated)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/123e4567-e89b-12d3-a456-426614174000",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "123e4567-e89b-12d3-a456-426614174000"]
+            },
+            "description": "Delete a notification (requires authentication)"
           },
           "response": []
         }

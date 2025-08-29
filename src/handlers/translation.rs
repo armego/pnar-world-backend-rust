@@ -1,5 +1,4 @@
 use actix_web::{delete, get, post, put, web, HttpResponse, Result};
-use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -13,13 +12,13 @@ use crate::{
     services::translation_service,
 };
 
+#[derive(serde::Deserialize)]
 pub struct TranslationQueryParams {
     pub page: Option<i64>,
     pub per_page: Option<i64>,
 }
 
 /// Create a new translation request
-)]
 #[post("")]
 pub async fn create_translation(
     pool: web::Data<sqlx::PgPool>,
@@ -30,14 +29,13 @@ pub async fn create_translation(
         pool.get_ref(),
         user.0.user_id,
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Created().json(translation))
 }
 
 /// Get translation request by ID
-    params(
-)]
 #[get("/{id}")]
 pub async fn get_translation(
     pool: web::Data<sqlx::PgPool>,
@@ -48,14 +46,13 @@ pub async fn get_translation(
         path.into_inner(),
         None, // No user_id for public access
         "user", // Default role for public access
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(translation))
 }
 
 /// List translation requests with pagination
-    params(TranslationQueryParams),
-)]
 #[get("")]
 pub async fn list_translations(
     pool: web::Data<sqlx::PgPool>,
@@ -70,14 +67,13 @@ pub async fn list_translations(
         "user", // Default role for public access
         page,
         per_page,
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(translations))
 }
 
 /// Update a translation request
-    params(
-)]
 #[put("/{id}")]
 pub async fn update_translation(
     pool: web::Data<sqlx::PgPool>,
@@ -95,6 +91,7 @@ pub async fn update_translation(
         translation_id,
         Some(user.user_id),
         &user.role,
+    )
     .await?;
     
     // Check if user can modify this translation
@@ -105,14 +102,13 @@ pub async fn update_translation(
         translation_id,
         user.user_id,
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(translation))
 }
 
 /// Delete a translation request
-    params(
-)]
 #[delete("/{id}")]
 pub async fn delete_translation(
     pool: web::Data<sqlx::PgPool>,
@@ -127,26 +123,28 @@ pub async fn delete_translation(
         translation_id,
         Some(user.user_id),
         &user.role,
+    )
     .await?;
     
     // Check if user can delete this translation
     if !user.can_delete_translation(Some(existing_translation.user_id)) {
         return Err(AppError::Forbidden(
             "Access denied. You can only delete your own translations.",
+        ));
     }
 
     translation_service::delete_translation_request(
         pool.get_ref(),
         translation_id,
         user.user_id,
+    )
     .await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
 
 /// Admin: Update any translation request
-    params(
-)]
+#[put("/admin/{id}")]
 pub async fn admin_update_translation(
     pool: web::Data<sqlx::PgPool>,
     _user: AdminUser, // Require admin role or higher
@@ -157,14 +155,14 @@ pub async fn admin_update_translation(
         pool.get_ref(),
         path.into_inner(),
         req.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::Ok().json(translation))
 }
 
 /// Admin: Delete any translation request
-    params(
-)]
+#[delete("/admin/{id}")]
 pub async fn admin_delete_translation(
     pool: web::Data<sqlx::PgPool>,
     _user: AdminUser, // Require admin role or higher
@@ -173,6 +171,7 @@ pub async fn admin_delete_translation(
     translation_service::admin_delete_translation_request(
         pool.get_ref(),
         path.into_inner(),
+    )
     .await?;
 
     Ok(HttpResponse::NoContent().finish())

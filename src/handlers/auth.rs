@@ -32,7 +32,6 @@ pub async fn login(
     Ok(HttpResponse::Ok().json(AuthApiResponse::new(auth_response)))
 }
 
-)]
 #[post("/logout")]
 pub async fn logout(_user: AuthenticatedUser) -> Result<HttpResponse, AppError> {
     // In a stateless JWT system, logout is typically handled client-side
@@ -40,7 +39,6 @@ pub async fn logout(_user: AuthenticatedUser) -> Result<HttpResponse, AppError> 
     Ok(HttpResponse::Ok().json(ApiResponse::new("Logged out successfully")))
 }
 
-)]
 #[get("/profile")]
 pub async fn profile(
     pool: web::Data<PgPool>,

@@ -3,7 +3,6 @@ use actix_web::{get, web, HttpResponse};
 use serde_json::json;
 use std::time::Instant;
 
-)]
 #[get("/health")]
 pub async fn health_check(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let start_time = Instant::now();
@@ -80,7 +79,6 @@ pub async fn health_check(state: web::Data<AppState>) -> Result<HttpResponse, Ap
     }
 }
 
-)]
 #[get("/ready")]
 pub async fn readiness_check(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let db = state.get_db_pool();
@@ -117,7 +115,6 @@ pub async fn readiness_check(state: web::Data<AppState>) -> Result<HttpResponse,
     }
 }
 
-)]
 #[get("/live")]
 pub async fn liveness_check() -> Result<HttpResponse, AppError> {
     // Simple liveness check - just return OK if the service is running
@@ -128,7 +125,6 @@ pub async fn liveness_check() -> Result<HttpResponse, AppError> {
     })))
 }
 
-)]
 #[get("/metrics")]
 pub async fn metrics(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let start_time = Instant::now();

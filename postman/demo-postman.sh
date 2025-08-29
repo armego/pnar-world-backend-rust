@@ -52,5 +52,4 @@ echo ""
 echo "🎉 With Postman, all this is ONE-CLICK!"
 echo ""
 echo "📖 See Postman-README.md for setup instructions"
-echo "📦 Files: PNAR-API.postman_collection.json + PNAR-API.postman_environment.json"</content>
-<parameter name="filePath">/Users/armegochylla/Projects/panr-online/pnar-world-backend-rust/demo-postman.sh
+echo "📦 Files: PNAR-API.postman_collection.json + PNAR-API.postman_environment.json"
