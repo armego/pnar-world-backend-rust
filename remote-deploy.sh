@@ -67,13 +67,9 @@ if [ -f "$BIN_PATH" ]; then
   mkdir -p "$BACKUP_DIR/$TIMESTAMP"
   # If BIN_PATH equals the location the archive will extract to, avoid copying the same file
   SRC_PATH="$APP_DIR/${BIN_NAME}"
-  # Resolve canonical paths when possible to avoid false negatives
-  CANON_BIN_PATH="$(readlink -f "$BIN_PATH" 2>/dev/null || echo "$BIN_PATH")"
-  CANON_SRC_PATH="$(readlink -f "$SRC_PATH" 2>/dev/null || echo "$SRC_PATH")"
-  echo "Existing binary canonical: $CANON_BIN_PATH"
-  echo "Source binary canonical:   $CANON_SRC_PATH"
-  if [ "$CANON_BIN_PATH" = "$CANON_SRC_PATH" ]; then
-    echo "Binary source and target are identical; creating backup copy instead of move."
+  # Prefer a robust same-file check using -ef (inode equivalence) when both files exist
+  if [ -e "$BIN_PATH" ] && [ -e "$SRC_PATH" ] && [ "$BIN_PATH" -ef "$SRC_PATH" ]; then
+    echo "Binary source and target are the same file (inode); creating backup copy instead of move."
     cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
   else
     cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
@@ -83,13 +79,17 @@ fi
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
 # Move the binary into place. Resolve canonical paths to detect identical files/symlinks.
 SRC_PATH="$APP_DIR/${BIN_NAME}"
-CANON_BIN_PATH="$(readlink -f "$BIN_PATH" 2>/dev/null || echo "$BIN_PATH")"
-CANON_SRC_PATH="$(readlink -f "$SRC_PATH" 2>/dev/null || echo "$SRC_PATH")"
-echo "Post-extract source canonical: $CANON_SRC_PATH"
-if [ "$CANON_BIN_PATH" = "$CANON_SRC_PATH" ]; then
-  echo "Source and target refer to the same file; skipping move."
+echo "Post-extract source: $SRC_PATH"
+# If both files exist and are the same inode, skip moving; otherwise perform move
+if [ -e "$BIN_PATH" ] && [ -e "$SRC_PATH" ] && [ "$BIN_PATH" -ef "$SRC_PATH" ]; then
+  echo "Source and target are the same file (inode); skipping move."
 else
-  mv -f "$SRC_PATH" "$BIN_PATH"
+  # Fallback: also skip if the path strings are identical
+  if [ "$SRC_PATH" != "$BIN_PATH" ]; then
+    mv -f "$SRC_PATH" "$BIN_PATH"
+  else
+    echo "Source and destination paths identical; skipping mv."
+  fi
 fi
 echo "Set perms on $BIN_PATH"
 chmod 750 "$BIN_PATH" || true
@@ -117,41 +117,24 @@ fi
 
 # Optional: configure UFW to only allow SSH and nginx, and block direct API port exposure
 if [ "$ENABLE_FIREWALL" = "true" ]; then
-  echo "Configuring UFW firewall..."
-  # We must avoid interactive sudo in CI. Only attempt firewall changes if running as root.
-  # Skip if not root to avoid sudo prompts.
-  SUDO_CMD=""
-  if [ "$(id -u)" -eq 0 ]; then
-    # Running as root, no need for sudo
-    SUDO_CMD=""
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "Firewall requested but not running as root; skipping firewall configuration to avoid sudo prompts."
   else
-    echo "Not running as root; skipping firewall configuration to avoid sudo prompts."
-    SUDO_CMD=""
-  fi
-
-  if [ -n "$SUDO_CMD" ] || [ "$(id -u)" -eq 0 ]; then
-    # Install ufw if missing (best-effort)
+    echo "Configuring UFW firewall (running as root)..."
     if ! command -v ufw >/dev/null 2>&1; then
-      echo "ufw not found; attempting to install..."
-      ${SUDO_CMD:-} apt-get update && ${SUDO_CMD:-} apt-get install -y ufw || true
+      echo "ufw not found; installing..."
+      apt-get update && apt-get install -y ufw || true
     fi
-
-    # Allow SSH
-    ${SUDO_CMD:-} ufw allow OpenSSH || true
-    # Allow http/https (nginx)
-    if ${SUDO_CMD:-} ufw status verbose | grep -q "Nginx Full"; then
-      ${SUDO_CMD:-} ufw allow 'Nginx Full' || true
+    ufw allow OpenSSH || true
+    if ufw status verbose | grep -q "Nginx Full"; then
+      ufw allow 'Nginx Full' || true
     else
-      ${SUDO_CMD:-} ufw allow 80/tcp || true
-      ${SUDO_CMD:-} ufw allow 443/tcp || true
+      ufw allow 80/tcp || true
+      ufw allow 443/tcp || true
     fi
-
-    # Deny external access to API port
-    ${SUDO_CMD:-} ufw deny proto tcp from any to any port 8000 || true
-
-    # Enable ufw (non-interactively)
-    ${SUDO_CMD:-} ufw --force enable || true
-    ${SUDO_CMD:-} ufw status verbose || true
+    ufw deny proto tcp from any to any port 8000 || true
+    ufw --force enable || true
+    ufw status verbose || true
   fi
 fi
 
