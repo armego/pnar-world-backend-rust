@@ -5,6 +5,9 @@ use tracing::{info, error};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load environment variables from .env file
+    dotenvy::dotenv().ok();
+
     // Determine environment and log levels
     let is_production = std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".into()) == "production";
     let log_level = if is_production { "warn" } else { "info" };

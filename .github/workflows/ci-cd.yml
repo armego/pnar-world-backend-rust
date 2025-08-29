@@ -108,4 +108,4 @@ jobs:
             ls -la
             echo "----------------------------------------"
             chmod +x ./remote-deploy.sh
-            ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" false
+            ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" "${{ secrets.DATABASE_USER }}" "${{ secrets.DATABASE_PASSWORD }}" "${{ secrets.JWT_SECRET }}" false
