@@ -23,7 +23,7 @@ database:
   username: '${DATABASE_USER}'
   password: '${DATABASE_PASSWORD}' # WARNING: Use environment variable in production!
   port: 5432
-  host: '127.0.0.1'
+  host: 'localhost'
   database_name: 'pnar_world'
   require_ssl: false # Enable in production!
 
