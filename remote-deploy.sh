@@ -2,6 +2,16 @@
 # remote-deploy.sh <systemd-service> <run-migrations:true|false> <database-url>
 set -euo pipefail
 
+# IMMEDIATE DEBUG: Print what script this is and where it's running
+echo "=== DEPLOY SCRIPT DEBUG START ==="
+echo "Script: $0"
+echo "PWD: $(pwd)"
+echo "User: $(whoami)"
+echo "UID: $(id -u)"
+echo "Arguments: $*"
+echo "Bash version: $BASH_VERSION"
+echo "=== DEPLOY SCRIPT DEBUG END ==="
+
 SERVICE="${1:-pnar.service}"
 RUN_MIGRATIONS="${2:-false}"
 DATABASE_URL="${3:-}"
@@ -48,6 +58,8 @@ mkdir -p "$BACKUP_DIR"
 # Ensure XDG_RUNTIME_DIR is set for systemctl --user to work properly
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 echo "Using XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+echo "About to call systemctl --user stop $SERVICE"
+echo "Current user: $(whoami), UID: $(id -u)"
 systemctl --user stop "$SERVICE" 2>/dev/null || echo "Failed to stop service $SERVICE (may not exist or user session not available)"
 
 if [ -f "$BIN_PATH" ]; then
