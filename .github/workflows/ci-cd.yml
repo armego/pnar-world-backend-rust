@@ -109,15 +109,9 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/deploy
+            ls -la
             chmod +x ./remote-deploy.sh
             ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" false
-          target: '${{ secrets.REMOTE_APP_DIR }}'
-
-      - name: Run remote deploy script (as pnar user, non-privileged)
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
