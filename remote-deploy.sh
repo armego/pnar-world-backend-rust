@@ -8,7 +8,9 @@ DATABASE_URL="${3:-}"
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 ARCHIVE="$APP_DIR/pnar-release.tar.gz"
-BIN_PATH="/opt/pnar/pnar"
+# Preserve the binary name used in Cargo.toml
+BIN_NAME="pnar-world-api"
+BIN_PATH="/opt/pnar/${BIN_NAME}"
 BACKUP_DIR="/opt/pnar/backups"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
@@ -29,7 +31,7 @@ if [ -f "$BIN_PATH" ]; then
 fi
 
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
-mv -f "$APP_DIR/pnar" "$BIN_PATH"
+mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
 chown pnar:pnar "$BIN_PATH" || true
 chmod 750 "$BIN_PATH" || true
 

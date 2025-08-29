@@ -1,0 +1,18 @@
+[Unit]
+Description=PNAR World API
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=pnar
+Group=pnar
+EnvironmentFile=/etc/pnar/pnar.env
+# ExecStart should point to the actual binary name
+ExecStart=/opt/pnar/pnar-world-api
+WorkingDirectory=/opt/pnar
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

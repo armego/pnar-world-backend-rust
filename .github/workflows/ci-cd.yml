@@ -50,8 +50,9 @@ jobs:
             echo "Binary not found at $BIN"
             exit 1
           fi
-          cp "$BIN" out/pnar
-          tar -C out -czf pnar-release.tar.gz pnar
+          # Preserve the real binary filename (pnar-world-api)
+          cp "$BIN" out/pnar-world-api
+          tar -C out -czf pnar-release.tar.gz pnar-world-api
           echo "artifact=pnar-release.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
