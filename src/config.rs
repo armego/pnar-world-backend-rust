@@ -114,7 +114,6 @@ impl Settings {
         builder = builder.add_source(
             config::Environment::default()
                 .separator("_")
-                .prefix("PNAR")
         );
 
         let settings = builder.build()?;
