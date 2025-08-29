@@ -42,12 +42,22 @@ systemctl --user stop "$SERVICE" || true
 if [ -f "$BIN_PATH" ]; then
   echo "Backing up existing binary..."
   mkdir -p "$BACKUP_DIR/$TIMESTAMP"
-  cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/"
+  # If BIN_PATH equals the location the archive will extract to, avoid copying the same file
+  if [ "$BIN_PATH" = "$APP_DIR/${BIN_NAME}" ]; then
+    echo "Binary is in deploy dir; moving will overwrite in-place. Creating a copy instead."
+    cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
+  else
+    cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
+  fi
 fi
 
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
-# Move the binary into place. If BIN_PATH is under APP_DIR this is non-privileged; otherwise this requires /opt/pnar to be writable.
-mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
+# Move the binary into place. Skip moving if source and target are identical.
+if [ "$BIN_PATH" = "$APP_DIR/${BIN_NAME}" ]; then
+  echo "Binary already at $BIN_PATH; skipping move."
+else
+  mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
+fi
 chmod 750 "$BIN_PATH" || true
 
 # Create/update a local env file in the deploy directory (non-privileged)
