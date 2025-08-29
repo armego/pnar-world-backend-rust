@@ -89,17 +89,18 @@ jobs:
             fi
           fi
 
-      - name: Copy release to server
+      - name: Copy release and deploy script to server (pnar-owned dir)
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: 'pnar-release.tar.gz'
+          # upload both the release archive and the deploy helper; ensure REMOTE_APP_DIR is writable by the pnar user (e.g. /home/pnar/deploy)
+          source: 'pnar-release.tar.gz,remote-deploy.sh'
           target: '${{ secrets.REMOTE_APP_DIR }}'
 
-      - name: Run remote deploy script
+      - name: Run remote deploy script (as pnar user, non-privileged)
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -109,4 +110,5 @@ jobs:
           script: |
             set -e
             cd "${{ secrets.REMOTE_APP_DIR }}"
-            sudo ./remote-deploy.sh "${{ secrets.REMOTE_SERVICE }}" "${{ secrets.RUN_MIGRATIONS }}" "${{ secrets.DATABASE_URL }}"
+            chmod +x ./remote-deploy.sh || true
+            ./remote-deploy.sh "${{ secrets.REMOTE_SERVICE }}" "${{ secrets.RUN_MIGRATIONS }}" "${{ secrets.DATABASE_URL }}" "${{ secrets.ENABLE_FIREWALL || 'false' }}"

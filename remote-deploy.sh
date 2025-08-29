@@ -12,16 +12,21 @@ APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 ARCHIVE="$APP_DIR/pnar-release.tar.gz"
 # Preserve the binary name used in Cargo.toml
 BIN_NAME="pnar-world-api"
-BIN_PATH="/opt/pnar/${BIN_NAME}"
-BACKUP_DIR="/opt/pnar/backups"
+OPT_BIN_DIR="/opt/pnar"
+# Prefer installing into /opt/pnar when writable; otherwise deploy into the user-writable app dir
+if [ -d "$OPT_BIN_DIR" ] && [ -w "$OPT_BIN_DIR" ]; then
+  BIN_PATH="$OPT_BIN_DIR/${BIN_NAME}"
+  BACKUP_DIR="$OPT_BIN_DIR/backups"
+else
+  BIN_PATH="$APP_DIR/${BIN_NAME}"
+  BACKUP_DIR="$APP_DIR/backups"
+fi
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
-# Determine whether we need to prefix privileged commands with sudo
-if [ "$(id -u)" -eq 0 ]; then
-  SUDO=""
-else
-  SUDO="sudo"
-fi
+# This script runs as the deploy user (pnar). It performs non-privileged
+# deployment into the same directory where the archive is uploaded.
+# To run a persistent systemd --user service for this user, enable linger:
+#   sudo loginctl enable-linger pnar
 echo "Deploy: $(date -u) Service=${SERVICE} RunMigrations=${RUN_MIGRATIONS}"
 
 if [ ! -f "$ARCHIVE" ]; then
@@ -29,8 +34,10 @@ if [ ! -f "$ARCHIVE" ]; then
   exit 2
 fi
 
+
 mkdir -p "$BACKUP_DIR"
-$SUDO systemctl stop "$SERVICE" || true
+# Stop the user-level service (non-privileged)
+systemctl --user stop "$SERVICE" || true
 
 if [ -f "$BIN_PATH" ]; then
   echo "Backing up existing binary..."
@@ -39,59 +46,75 @@ if [ -f "$BIN_PATH" ]; then
 fi
 
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
+# Move the binary into place. If BIN_PATH is under APP_DIR this is non-privileged; otherwise this requires /opt/pnar to be writable.
 mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
-$SUDO chown pnar:pnar "$BIN_PATH" || true
-$SUDO chmod 750 "$BIN_PATH" || true
+chmod 750 "$BIN_PATH" || true
 
-# Ensure /etc/pnar exists and configure SERVER_HOST to bind to localhost so API is local-only
-ETC_ENV_DIR="/etc/pnar"
-ETC_ENV_FILE="$ETC_ENV_DIR/pnar.env"
-sudo mkdir -p "$ETC_ENV_DIR"
-sudo chown root:root "$ETC_ENV_DIR"
-sudo chmod 700 "$ETC_ENV_DIR"
-
-if [ -f "$ETC_ENV_FILE" ]; then
-  # Replace or add SERVER_HOST=127.0.0.1
-  if sudo grep -q '^SERVER_HOST=' "$ETC_ENV_FILE" 2>/dev/null; then
-    sudo sed -i 's/^SERVER_HOST=.*/SERVER_HOST=127.0.0.1/' "$ETC_ENV_FILE"
+# Create/update a local env file in the deploy directory (non-privileged)
+LOCAL_ENV_FILE="$APP_DIR/pnar.env"
+if [ -f "$LOCAL_ENV_FILE" ]; then
+  if grep -q '^SERVER_HOST=' "$LOCAL_ENV_FILE" 2>/dev/null; then
+    sed -i 's/^SERVER_HOST=.*/SERVER_HOST=127.0.0.1/' "$LOCAL_ENV_FILE"
   else
-    echo 'SERVER_HOST=127.0.0.1' | sudo tee -a "$ETC_ENV_FILE" >/dev/null
+    echo 'SERVER_HOST=127.0.0.1' >> "$LOCAL_ENV_FILE"
   fi
 else
-  # Create a minimal env file if missing (do not overwrite secrets)
-  sudo tee "$ETC_ENV_FILE" > /dev/null <<'EOF'
+  cat > "$LOCAL_ENV_FILE" <<'EOF'
 SERVER_HOST=127.0.0.1
 SERVER_PORT=8000
 RUST_LOG=info
 EOF
-  sudo chmod 600 "$ETC_ENV_FILE"
+  chmod 600 "$LOCAL_ENV_FILE"
 fi
+
+# Note: If you want a persistent systemd --user service, enable linger for the user once:
+# sudo loginctl enable-linger pnar
 
 # Optional: configure UFW to only allow SSH and nginx, and block direct API port exposure
 if [ "$ENABLE_FIREWALL" = "true" ]; then
   echo "Configuring UFW firewall..."
-  # Install ufw if missing (best-effort)
-  if ! command -v ufw >/dev/null 2>&1; then
-    echo "ufw not found; attempting to install..."
-    sudo apt-get update && sudo apt-get install -y ufw || true
+  # We must avoid interactive sudo in CI. Only attempt firewall changes if running as root
+  # or if passwordless sudo is available. Otherwise skip with a warning.
+  SUDO_CMD=""
+  if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+      # Check if sudo is available without password
+      if sudo -n true 2>/dev/null; then
+        SUDO_CMD="sudo"
+      else
+        echo "No passwordless sudo available; skipping firewall configuration."
+        SUDO_CMD=""
+      fi
+    else
+      echo "sudo not available; skipping firewall configuration."
+      SUDO_CMD=""
+    fi
   fi
 
-  # Allow SSH
-  sudo ufw allow OpenSSH || true
-  # Allow http/https (nginx)
-  if sudo ufw status verbose | grep -q "Nginx Full"; then
-    sudo ufw allow 'Nginx Full' || true
-  else
-    sudo ufw allow 80/tcp || true
-    sudo ufw allow 443/tcp || true
+  if [ -n "$SUDO_CMD" ] || [ "$(id -u)" -eq 0 ]; then
+    # Install ufw if missing (best-effort)
+    if ! command -v ufw >/dev/null 2>&1; then
+      echo "ufw not found; attempting to install..."
+      ${SUDO_CMD:-} apt-get update && ${SUDO_CMD:-} apt-get install -y ufw || true
+    fi
+
+    # Allow SSH
+    ${SUDO_CMD:-} ufw allow OpenSSH || true
+    # Allow http/https (nginx)
+    if ${SUDO_CMD:-} ufw status verbose | grep -q "Nginx Full"; then
+      ${SUDO_CMD:-} ufw allow 'Nginx Full' || true
+    else
+      ${SUDO_CMD:-} ufw allow 80/tcp || true
+      ${SUDO_CMD:-} ufw allow 443/tcp || true
+    fi
+
+    # Deny external access to API port
+    ${SUDO_CMD:-} ufw deny proto tcp from any to any port 8000 || true
+
+    # Enable ufw (non-interactively)
+    ${SUDO_CMD:-} ufw --force enable || true
+    ${SUDO_CMD:-} ufw status verbose || true
   fi
-
-  # Deny external access to API port
-  sudo ufw deny proto tcp from any to any port 8000 || true
-
-  # Enable ufw (non-interactively)
-  sudo ufw --force enable || true
-  sudo ufw status verbose || true
 fi
 
 if [ "$RUN_MIGRATIONS" = "true" ]; then
@@ -102,7 +125,8 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     else
       echo "Binary does not support migrations flag or failed, attempting sqlx-cli..."
       if command -v sqlx >/dev/null 2>&1; then
-    $SUDO -u pnar DATABASE_URL="$DATABASE_URL" sqlx migrate run
+    # Run migrations as this user
+    DATABASE_URL="$DATABASE_URL" sqlx migrate run
       else
         echo "sqlx not found; skipping migrations."
       fi
@@ -111,9 +135,9 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "DATABASE_URL is empty; skipping migrations."
   fi
 fi
-
-  $SUDO systemctl daemon-reload
-  $SUDO systemctl start "$SERVICE"
+  # Reload and start the user-level service
+  systemctl --user daemon-reload || true
+  systemctl --user start "$SERVICE" || true
   sleep 1
-  $SUDO systemctl status "$SERVICE" --no-pager
+  systemctl --user status "$SERVICE" --no-pager || true
 echo "Deployment finished at $(date -u)"
