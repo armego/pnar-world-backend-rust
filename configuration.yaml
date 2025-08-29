@@ -20,8 +20,8 @@ application:
 
 database:
   # Connection settings
-  username: '${DATABASE_USER}'
-  password: '${DATABASE_PASSWORD}' # WARNING: Use environment variable in production!
+  username: ${DATABASE_USER}
+  password: ${DATABASE_PASSWORD} # WARNING: Use environment variable in production!
   port: 5432
   host: 'localhost'
   database_name: 'pnar_world'
@@ -36,7 +36,7 @@ database:
 
 jwt:
   # JWT configuration
-  secret: '${JWT_SECRET}' # WARNING: Use environment variable!
+  secret: ${JWT_SECRET} # WARNING: Use environment variable!
   expires_in_minutes: 60
   refresh_expires_in_days: 7
 
