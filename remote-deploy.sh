@@ -16,6 +16,12 @@ BIN_PATH="/opt/pnar/${BIN_NAME}"
 BACKUP_DIR="/opt/pnar/backups"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
+# Determine whether we need to prefix privileged commands with sudo
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
 echo "Deploy: $(date -u) Service=${SERVICE} RunMigrations=${RUN_MIGRATIONS}"
 
 if [ ! -f "$ARCHIVE" ]; then
@@ -24,7 +30,7 @@ if [ ! -f "$ARCHIVE" ]; then
 fi
 
 mkdir -p "$BACKUP_DIR"
-sudo systemctl stop "$SERVICE" || true
+$SUDO systemctl stop "$SERVICE" || true
 
 if [ -f "$BIN_PATH" ]; then
   echo "Backing up existing binary..."
@@ -34,8 +40,8 @@ fi
 
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
 mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
-chown pnar:pnar "$BIN_PATH" || true
-chmod 750 "$BIN_PATH" || true
+$SUDO chown pnar:pnar "$BIN_PATH" || true
+$SUDO chmod 750 "$BIN_PATH" || true
 
 # Ensure /etc/pnar exists and configure SERVER_HOST to bind to localhost so API is local-only
 ETC_ENV_DIR="/etc/pnar"
@@ -96,7 +102,7 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     else
       echo "Binary does not support migrations flag or failed, attempting sqlx-cli..."
       if command -v sqlx >/dev/null 2>&1; then
-        sudo -u pnar DATABASE_URL="$DATABASE_URL" sqlx migrate run
+    $SUDO -u pnar DATABASE_URL="$DATABASE_URL" sqlx migrate run
       else
         echo "sqlx not found; skipping migrations."
       fi
@@ -106,8 +112,8 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
   fi
 fi
 
-sudo systemctl daemon-reload
-sudo systemctl start "$SERVICE"
-sleep 1
-sudo systemctl status "$SERVICE" --no-pager
+  $SUDO systemctl daemon-reload
+  $SUDO systemctl start "$SERVICE"
+  sleep 1
+  $SUDO systemctl status "$SERVICE" --no-pager
 echo "Deployment finished at $(date -u)"
