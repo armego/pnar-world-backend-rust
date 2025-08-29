@@ -103,22 +103,15 @@ fi
 # Optional: configure UFW to only allow SSH and nginx, and block direct API port exposure
 if [ "$ENABLE_FIREWALL" = "true" ]; then
   echo "Configuring UFW firewall..."
-  # We must avoid interactive sudo in CI. Only attempt firewall changes if running as root
-  # or if passwordless sudo is available. Otherwise skip with a warning.
+  # We must avoid interactive sudo in CI. Only attempt firewall changes if running as root.
+  # Skip if not root to avoid sudo prompts.
   SUDO_CMD=""
-  if [ "$(id -u)" -ne 0 ]; then
-    if command -v sudo >/dev/null 2>&1; then
-      # Check if sudo is available without password
-      if sudo -n true 2>/dev/null; then
-        SUDO_CMD="sudo"
-      else
-        echo "No passwordless sudo available; skipping firewall configuration."
-        SUDO_CMD=""
-      fi
-    else
-      echo "sudo not available; skipping firewall configuration."
-      SUDO_CMD=""
-    fi
+  if [ "$(id -u)" -eq 0 ]; then
+    # Running as root, no need for sudo
+    SUDO_CMD=""
+  else
+    echo "Not running as root; skipping firewall configuration to avoid sudo prompts."
+    SUDO_CMD=""
   fi
 
   if [ -n "$SUDO_CMD" ] || [ "$(id -u)" -eq 0 ]; then
