@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# remote-deploy.sh <systemd-service> <run-migrations:true|false> <database-url>
+# remote-# ALWAYS deploy into the user-writable app dir in CI
+BIN_PATH="$APP_DIR/${BIN_NAME}"
+BACKUP_DIR="$APP_DIR/backups"
+echo "Using local deployment path: BIN_PATH=$BIN_PATH"
+echo "Using local backups path: BACKUP_DIR=$BACKUP_DIR"h <systemd-service> <run-migrations:true|false> <database-url>
 set -euo pipefail
 
 # IMMEDIATE DEBUG: Print what script this is and where it's running
@@ -10,7 +14,11 @@ echo "User: $(whoami)"
 echo "UID: $(id -u)"
 echo "Arguments: $*"
 echo "Bash version: $BASH_VERSION"
+echo "Environment: $(env | grep -v DATABASE_URL | grep -v KEY)"
 echo "=== DEPLOY SCRIPT DEBUG END ==="
+
+# Enable tracing to see exactly what's being executed
+set -x
 
 SERVICE="${1:-pnar.service}"
 RUN_MIGRATIONS="${2:-false}"
