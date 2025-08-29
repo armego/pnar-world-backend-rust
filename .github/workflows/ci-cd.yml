@@ -67,6 +67,9 @@ jobs:
     needs: build-and-test
     if: github.ref == 'refs/heads/develop'
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
@@ -78,26 +81,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
-            echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-            chmod 644 ~/.ssh/known_hosts
-          else
-            # fallback to ssh-keyscan (best-effort, may fail in restricted runners)
-            if [ -n "${{ secrets.SSH_HOST }}" ]; then
-              ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts || true
-              chmod 644 ~/.ssh/known_hosts || true
-            fi
-          fi
-
-      - name: Create deploy directory and copy files
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            mkdir -p /home/${{ secrets.SSH_USER }}/deploy
+          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Copy release and deploy script to server
         uses: appleboy/scp-action@v0.1.7
@@ -108,6 +92,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: 'pnar-release.tar.gz,remote-deploy.sh'
           target: '/home/${{ secrets.SSH_USER }}/deploy'
+          overwrite: true
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.3
@@ -119,6 +104,8 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.SSH_USER }}/deploy
+            echo "--- Listing files in deploy directory ---"
             ls -la
+            echo "----------------------------------------"
             chmod +x ./remote-deploy.sh
             ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" false
