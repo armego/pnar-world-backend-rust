@@ -89,6 +89,16 @@ jobs:
             fi
           fi
 
+      - name: Create deploy directory and copy files
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p /home/${{ secrets.SSH_USER }}/deploy
+
       - name: Copy release and deploy script to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -97,7 +107,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: 'pnar-release.tar.gz,remote-deploy.sh'
-          target: '/home/${{ secrets.SSH_USER }}/deploy' # Deploy to a dedicated directory
+          target: '/home/${{ secrets.SSH_USER }}/deploy'
 
       - name: Run deploy script on server
         uses: appleboy/ssh-action@v1.0.3
@@ -112,10 +122,3 @@ jobs:
             ls -la
             chmod +x ./remote-deploy.sh
             ./remote-deploy.sh pnar.service false "${{ secrets.DATABASE_URL }}" false
-          port: ${{ secrets.SSH_PORT || 22 }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd "${{ secrets.REMOTE_APP_DIR }}"
-            chmod +x ./remote-deploy.sh || true
-            ./remote-deploy.sh "${{ secrets.REMOTE_SERVICE }}" "${{ secrets.RUN_MIGRATIONS }}" "${{ secrets.DATABASE_URL }}" "${{ secrets.ENABLE_FIREWALL || 'false' }}"
