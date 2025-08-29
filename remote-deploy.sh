@@ -45,7 +45,10 @@ fi
 
 mkdir -p "$BACKUP_DIR"
 # Stop the user-level service (non-privileged)
-systemctl --user stop "$SERVICE" || true
+# Ensure XDG_RUNTIME_DIR is set for systemctl --user to work properly
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+echo "Using XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+systemctl --user stop "$SERVICE" 2>/dev/null || echo "Failed to stop service $SERVICE (may not exist or user session not available)"
 
 if [ -f "$BIN_PATH" ]; then
   echo "Backing up existing binary..."
@@ -159,8 +162,9 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
   fi
 fi
   # Reload and start the user-level service
-  systemctl --user daemon-reload || true
-  systemctl --user start "$SERVICE" || true
+  echo "Reloading and starting user systemd service..."
+  systemctl --user daemon-reload 2>/dev/null || echo "Failed to reload systemd --user daemon"
+  systemctl --user start "$SERVICE" 2>/dev/null || echo "Failed to start service $SERVICE"
   sleep 1
-  systemctl --user status "$SERVICE" --no-pager || true
+  systemctl --user status "$SERVICE" --no-pager 2>/dev/null || echo "Failed to get status of service $SERVICE"
 echo "Deployment finished at $(date -u)"
