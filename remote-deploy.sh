@@ -29,6 +29,14 @@ TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 #   sudo loginctl enable-linger pnar
 echo "Deploy: $(date -u) Service=${SERVICE} RunMigrations=${RUN_MIGRATIONS}"
 
+# Debug: print which script is running and key paths for CI logs
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+echo "Script path: $SCRIPT_PATH"
+echo "APP_DIR: $APP_DIR"
+echo "BIN_NAME: $BIN_NAME"
+echo "BIN_PATH: $BIN_PATH"
+echo "ARCHIVE: $ARCHIVE"
+
 if [ ! -f "$ARCHIVE" ]; then
   echo "ERROR: archive not found: $ARCHIVE"
   exit 2
@@ -43,8 +51,14 @@ if [ -f "$BIN_PATH" ]; then
   echo "Backing up existing binary..."
   mkdir -p "$BACKUP_DIR/$TIMESTAMP"
   # If BIN_PATH equals the location the archive will extract to, avoid copying the same file
-  if [ "$BIN_PATH" = "$APP_DIR/${BIN_NAME}" ]; then
-    echo "Binary is in deploy dir; moving will overwrite in-place. Creating a copy instead."
+  SRC_PATH="$APP_DIR/${BIN_NAME}"
+  # Resolve canonical paths when possible to avoid false negatives
+  CANON_BIN_PATH="$(readlink -f "$BIN_PATH" 2>/dev/null || echo "$BIN_PATH")"
+  CANON_SRC_PATH="$(readlink -f "$SRC_PATH" 2>/dev/null || echo "$SRC_PATH")"
+  echo "Existing binary canonical: $CANON_BIN_PATH"
+  echo "Source binary canonical:   $CANON_SRC_PATH"
+  if [ "$CANON_BIN_PATH" = "$CANON_SRC_PATH" ]; then
+    echo "Binary source and target are identical; creating backup copy instead of move."
     cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
   else
     cp -a "$BIN_PATH" "$BACKUP_DIR/$TIMESTAMP/" || true
@@ -52,12 +66,18 @@ if [ -f "$BIN_PATH" ]; then
 fi
 
 tar -xzf "$ARCHIVE" -C "$APP_DIR"
-# Move the binary into place. Skip moving if source and target are identical.
-if [ "$BIN_PATH" = "$APP_DIR/${BIN_NAME}" ]; then
-  echo "Binary already at $BIN_PATH; skipping move."
+# Move the binary into place. Resolve canonical paths to detect identical files/symlinks.
+SRC_PATH="$APP_DIR/${BIN_NAME}"
+CANON_BIN_PATH="$(readlink -f "$BIN_PATH" 2>/dev/null || echo "$BIN_PATH")"
+CANON_SRC_PATH="$(readlink -f "$SRC_PATH" 2>/dev/null || echo "$SRC_PATH")"
+echo "Post-extract source canonical: $CANON_SRC_PATH"
+if [ "$CANON_BIN_PATH" = "$CANON_SRC_PATH" ]; then
+  echo "Source and target refer to the same file; skipping move."
 else
-  mv -f "$APP_DIR/${BIN_NAME}" "$BIN_PATH"
+  mv -f "$SRC_PATH" "$BIN_PATH"
 fi
+echo "Set perms on $BIN_PATH"
+chmod 750 "$BIN_PATH" || true
 chmod 750 "$BIN_PATH" || true
 
 # Create/update a local env file in the deploy directory (non-privileged)
