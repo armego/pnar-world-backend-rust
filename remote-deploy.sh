@@ -3,7 +3,7 @@
 set -euo pipefail
 
 echo "=============================================="
-echo "RUNNING CI-FRIENDLY DEPLOY SCRIPT (v2)"
+echo "RUNNING CI-FRIENDLY DEPLOY SCRIPT (v3)"
 echo "=============================================="
 echo "Script: $0"
 echo "PWD: $(pwd)"
@@ -21,7 +21,7 @@ echo "=== DEPLOY SCRIPT DEBUG START ==="
 echo "Script: $0"
 echo "PWD: $(pwd)"
 echo "User: $(whoami)"
-echo "UID: $(id -u)"
+echo "UID: $(id -u))"
 echo "Arguments: $*"
 echo "Bash version: $BASH_VERSION"
 echo "=== DEPLOY SCRIPT DEBUG END ==="
