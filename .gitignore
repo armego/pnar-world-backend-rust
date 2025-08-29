@@ -18,6 +18,9 @@
 *.swo
 *~
 
+# Environment variables
+.env
+
 # OS generated files (macOS, Windows)
 .DS_Store
 .DS_Store?
@@ -26,10 +29,6 @@
 .Trashes
 Thumbs.db
 ehthumbs.db
-
-# Environment files (local secrets)
-.env
-.env.*
 
 # Logs and runtime artifacts
 *.log

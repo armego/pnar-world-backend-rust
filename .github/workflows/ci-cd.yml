@@ -90,7 +90,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: 'pnar-release.tar.gz,remote-deploy.sh'
+          source: 'pnar-release.tar.gz,remote-deploy.sh,configuration.yaml'
           target: '/home/${{ secrets.SSH_USER }}/deploy'
           overwrite: true
 
