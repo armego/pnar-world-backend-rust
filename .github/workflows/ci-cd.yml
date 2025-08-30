@@ -53,11 +53,36 @@ jobs:
             echo "Binary not found at $BIN"
             exit 1
           fi
+          # Debug: Check if sqlx-cli was installed
+          echo "=== DEBUG: Checking for sqlx-cli ==="
+          ls -la ~/.cargo/bin/ | grep sqlx || echo "sqlx not found in ~/.cargo/bin/"
+          which sqlx || echo "sqlx not in PATH"
+          echo "=== END DEBUG ==="
+
           # Preserve the real binary filename (pnar-world-api)
           cp "$BIN" out/pnar-world-api
           # Also copy the sqlx-cli binary
-          cp ~/.cargo/bin/sqlx out/sqlx
+          if [ -f ~/.cargo/bin/sqlx ]; then
+            cp ~/.cargo/bin/sqlx out/sqlx
+            chmod +x out/sqlx
+            echo "sqlx copied successfully"
+          else
+            echo "ERROR: sqlx binary not found at ~/.cargo/bin/sqlx"
+            exit 1
+          fi
+
+          # Debug: Check what's in the out directory
+          echo "=== DEBUG: Contents of out directory ==="
+          ls -la out/
+          echo "=== END DEBUG ==="
+
           tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx
+
+          # Debug: Check what's in the tarball
+          echo "=== DEBUG: Contents of tarball ==="
+          tar -tzf pnar-release.tar.gz
+          echo "=== END DEBUG ==="
+
           echo "artifact=pnar-release.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
