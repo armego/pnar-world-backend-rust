@@ -64,8 +64,8 @@ fi
 
 # Extract the new release
 echo "Extracting archive $ARCHIVE into $APP_DIR"
-# Use --strip-components=1 to remove the top-level directory from the archive
-tar -xzf "$ARCHIVE" -C "$APP_DIR" --strip-components=1
+# The archive is created with the correct directory structure, so we don't strip components.
+tar -xzf "$ARCHIVE" -C "$APP_DIR"
 
 # Debug: List what was extracted
 echo "=== DEBUG: Files extracted to $APP_DIR ==="
@@ -118,7 +118,7 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     
     # Export DATABASE_URL for sqlx-cli to use
     export DATABASE_URL
-    "$APP_DIR/sqlx" migrate run --source "$APP_DIR/migrations"
+    "$APP_DIR/sqlx" migrate run
     echo "Migrations complete."
   else
     echo "ERROR: sqlx-cli not found in $APP_DIR. Cannot run migrations."
