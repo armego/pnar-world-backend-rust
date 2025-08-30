@@ -106,6 +106,9 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     # Debug: Show current directory and available files
     echo "=== DEBUG: Migration environment ==="
     echo "Current directory: $(pwd)"
+    # Redact password for security
+    REDACTED_URL=$(echo "$DATABASE_URL" | sed -E 's/:[^@]+@/:<REDACTED>@/')
+    echo "DATABASE_URL (redacted): $REDACTED_URL"
     echo "APP_DIR: $APP_DIR"
     echo "Contents of APP_DIR:"
     ls -la "$APP_DIR"
