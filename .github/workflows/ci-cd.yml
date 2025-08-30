@@ -71,14 +71,20 @@ jobs:
             exit 1
           fi
 
+          # Copy migrations directory
+          if [ -d migrations ]; then
+            cp -r migrations out/
+            echo "migrations directory copied successfully"
+          else
+            echo "WARNING: migrations directory not found"
+          fi
+
           # Debug: Check what's in the out directory
           echo "=== DEBUG: Contents of out directory ==="
           ls -la out/
           echo "=== END DEBUG ==="
 
-          tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx
-
-          # Debug: Check what's in the tarball
+          tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx migrations          # Debug: Check what's in the tarball
           echo "=== DEBUG: Contents of tarball ==="
           tar -tzf pnar-release.tar.gz
           echo "=== END DEBUG ==="
