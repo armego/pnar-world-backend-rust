@@ -118,7 +118,7 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     
     # Export DATABASE_URL for sqlx-cli to use
     export DATABASE_URL
-    "$APP_DIR/sqlx" migrate run
+    "$APP_DIR/sqlx" migrate run --source "$APP_DIR/migrations"
     echo "Migrations complete."
   else
     echo "ERROR: sqlx-cli not found in $APP_DIR. Cannot run migrations."
