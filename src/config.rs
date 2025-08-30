@@ -156,7 +156,7 @@ impl DatabaseSettings {
 
         PgConnectOptions::new()
             .host(&self.host)
-            .username(&self.username)
+            .username(&self.user)
             .password(self.password.expose_secret())
             .port(self.port)
             .database(&self.database_name)
@@ -166,7 +166,7 @@ impl DatabaseSettings {
     pub fn connection_string(&self) -> Secret<String> {
         Secret::new(format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.username,
+            self.user,
             self.password.expose_secret(),
             self.host,
             self.port,
