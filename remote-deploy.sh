@@ -67,6 +67,11 @@ echo "Extracting archive $ARCHIVE into $APP_DIR"
 # Use --strip-components=1 to remove the top-level directory from the archive
 tar -xzf "$ARCHIVE" -C "$APP_DIR" --strip-components=1
 
+# Debug: List what was extracted
+echo "=== DEBUG: Files extracted to $APP_DIR ==="
+ls -la "$APP_DIR"
+echo "=== END DEBUG ==="
+
 # Ensure binaries are executable
 chmod +x "$BIN_PATH"
 if [ -f "$APP_DIR/sqlx" ]; then
@@ -97,6 +102,20 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
   # The sqlx-cli binary should be in the same directory
   if [ -x "$APP_DIR/sqlx" ]; then
     echo "Found sqlx-cli. Running migrations..."
+    
+    # Debug: Show current directory and available files
+    echo "=== DEBUG: Migration environment ==="
+    echo "Current directory: $(pwd)"
+    echo "APP_DIR: $APP_DIR"
+    echo "Contents of APP_DIR:"
+    ls -la "$APP_DIR"
+    echo "Looking for migrations directory:"
+    ls -la "$APP_DIR/migrations" 2>/dev/null || echo "migrations directory not found in APP_DIR"
+    echo "=== END DEBUG ==="
+    
+    # Change to APP_DIR for migrations
+    cd "$APP_DIR"
+    
     # Export DATABASE_URL for sqlx-cli to use
     export DATABASE_URL
     "$APP_DIR/sqlx" migrate run

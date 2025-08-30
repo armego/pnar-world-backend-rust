@@ -84,7 +84,9 @@ jobs:
           ls -la out/
           echo "=== END DEBUG ==="
 
-          tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx migrations          # Debug: Check what's in the tarball
+          tar -C out -czf pnar-release.tar.gz pnar-world-api sqlx migrations
+          
+          # Debug: Check what's in the tarball
           echo "=== DEBUG: Contents of tarball ==="
           tar -tzf pnar-release.tar.gz
           echo "=== END DEBUG ==="
